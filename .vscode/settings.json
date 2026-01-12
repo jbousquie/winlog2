@@ -1,0 +1,10 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "cargo clean": true,
+        "where": true,
+        "/^rustup toolchain list$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

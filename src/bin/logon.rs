@@ -10,8 +10,7 @@ use winlog::{
     utils,
 };
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[LOGON] Démarrage du processus d'ouverture de session");
     
     // Collecte des informations système de base
@@ -33,9 +32,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Données invalides".into());
     }
     
-    // TODO: Envoi des données au serveur
-    println!("[LOGON] Données à envoyer: {:?}", data);
-    println!("[LOGON] Session ouverte avec succès");
+    // Envoi des données au serveur
+    let client = MonitoringClient::new(None);
+    match client.send_data(&data) {
+        Ok(()) => println!("[LOGON] Session ouverte avec succès"),
+        Err(e) => {
+            eprintln!("[LOGON] Échec de l'envoi: {}", e);
+            return Err(e);
+        }
+    }
     
     Ok(())
 }

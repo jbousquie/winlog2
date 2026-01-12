@@ -10,8 +10,7 @@ use winlog::{
     utils,
 };
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[MATOS] Démarrage de la collecte d'informations matérielles");
     
     // Collecte des informations système de base
@@ -37,9 +36,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Données invalides".into());
     }
     
-    // TODO: Envoi des données au serveur
-    println!("[MATOS] Données matérielles à envoyer: {:?}", data);
-    println!("[MATOS] Collecte matérielle terminée avec succès");
+    // Envoi des données au serveur
+    let client = MonitoringClient::new(None);
+    match client.send_data(&data) {
+        Ok(()) => println!("[MATOS] Collecte matérielle terminée avec succès"),
+        Err(e) => {
+            eprintln!("[MATOS] Échec de l'envoi: {}", e);
+            return Err(e);
+        }
+    }
     
     Ok(())
 }

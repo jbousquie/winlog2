@@ -8,32 +8,58 @@ pub mod config;
 
 /// Module de gestion des requêtes HTTP vers le serveur de monitoring
 pub mod http_client {
-    use reqwest::Client;
+    use minreq;
     use std::collections::HashMap;
     use crate::config;
     
     /// Client HTTP pour envoyer les données au serveur de monitoring
     pub struct MonitoringClient {
-        client: Client,
         server_url: String,
+        timeout: std::time::Duration,
     }
     
     impl MonitoringClient {
         /// Crée une nouvelle instance du client HTTP
         pub fn new(server_url: Option<String>) -> Self {
             Self {
-                client: Client::new(),
                 server_url: server_url.unwrap_or_else(|| config::DEFAULT_SERVER_URL.to_string()),
+                timeout: std::time::Duration::from_secs(config::DEFAULT_TIMEOUT),
             }
         }
         
-        /// Envoie les données au serveur via HTTP POST
-        pub async fn send_data(&self, data: HashMap<String, serde_json::Value>) -> Result<(), Box<dyn std::error::Error>> {
-            // TODO: Implémentation de l'envoi HTTP POST avec retry selon config::MAX_RETRIES
-            println!("Envoi des données vers {}: {:?}", self.server_url, data);
-            println!("Configuration: timeout={}s, max_retries={}", 
-                    config::DEFAULT_TIMEOUT, config::MAX_RETRIES);
-            Ok(())
+        /// Envoie les données au serveur via HTTP POST synchrone avec retry
+        pub fn send_data(&self, data: &crate::data_structures::WinlogData) -> Result<(), Box<dyn std::error::Error>> {
+            let json_data = serde_json::to_string(data)?;
+            
+            for attempt in 1..=config::MAX_RETRIES {
+                println!("Tentative {}/{} d'envoi vers {}", attempt, config::MAX_RETRIES, self.server_url);
+                
+                match minreq::post(&self.server_url)
+                    .with_header("Content-Type", "application/json")
+                    .with_header("User-Agent", config::USER_AGENT)
+                    .with_timeout(config::DEFAULT_TIMEOUT)
+                    .with_body(json_data.clone())
+                    .send()
+                {
+                    Ok(response) => {
+                        if response.status_code >= 200 && response.status_code < 300 {
+                            println!("Données envoyées avec succès (HTTP {})", response.status_code);
+                            return Ok(());
+                        } else {
+                            eprintln!("Erreur HTTP {}: {}", response.status_code, response.reason_phrase);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Erreur réseau (tentative {}): {}", attempt, e);
+                    }
+                }
+                
+                if attempt < config::MAX_RETRIES {
+                    std::thread::sleep(std::time::Duration::from_millis(config::RETRY_DELAY_MS));
+                }
+            }
+            
+            Err("Échec d'envoi après tous les essais".into())
         }
     }
 }
