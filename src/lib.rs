@@ -31,6 +31,9 @@ pub mod http_client {
         pub fn send_data(&self, data: &crate::data_structures::WinlogData) -> Result<(), Box<dyn std::error::Error>> {
             let json_data = serde_json::to_string(data)?;
             
+            // Debug: Affichage du JSON envoyé
+            println!("JSON envoyé: {}", json_data);
+            
             for attempt in 1..=config::MAX_RETRIES {
                 println!("Tentative {}/{} d'envoi vers {}", attempt, config::MAX_RETRIES, self.server_url);
                 
@@ -47,6 +50,9 @@ pub mod http_client {
                             return Ok(());
                         } else {
                             eprintln!("Erreur HTTP {}: {}", response.status_code, response.reason_phrase);
+                            if let Ok(body) = response.as_str() {
+                                eprintln!("Réponse du serveur: {}", body);
+                            }
                         }
                     }
                     Err(e) => {

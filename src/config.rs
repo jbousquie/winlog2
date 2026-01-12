@@ -4,7 +4,7 @@
 //! par les différents binaires du projet.
 
 /// Configuration par défaut du serveur de monitoring
-pub const DEFAULT_SERVER_URL: &str = "http://192.168.122.1/winlog";
+pub const DEFAULT_SERVER_URL: &str = "http://192.168.122.1/winlog/index.php";
 
 /// Timeout par défaut pour les requêtes HTTP (en secondes)
 pub const DEFAULT_TIMEOUT: u64 = 30;
