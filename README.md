@@ -80,6 +80,24 @@ Les binaires utilisent une architecture **100% synchrone** optimisée pour des s
 - `minreq` (2.14) : Client HTTP synchrone léger
 - `serde` + `serde_json` (1.0) : Sérialisation JSON
 - `chrono` (0.4) : Gestion des timestamps
+- `whoami` (1.4) : Détection du nom d'utilisateur
+
+## Traitement des données
+
+Les données sont envoyées au serveur de monitoring via HTTP POST avec un payload JSON. Le serveur traite les informations reçues et les stocke dans une **base de données SQLite** pour analyse et requêtes dynamiques.
+
+### Stockage SQLite
+- **Base de données** : `/var/lib/winlog/winlog.db`
+- **Table principale** : `events` avec index optimisés
+- **Concurrence** : Mode WAL pour écritures simultanées
+- **Performance** : Support de centaines de connexions simultanées
+
+### Scripts de gestion
+- `php/creation_base.php` : Création de la base et des tables
+- `php/delete_base.php` : Suppression complète de la base
+- `php/purge_base.php` : Vidage des données (conserve la structure)
+- `serde` + `serde_json` (1.0) : Sérialisation JSON
+- `chrono` (0.4) : Gestion des timestamps
 - `whoami` (1.4) : Récupération du nom d'utilisateur
 
 ## Format des données envoyées

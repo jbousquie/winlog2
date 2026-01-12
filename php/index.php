@@ -2,19 +2,66 @@
 /**
  * Serveur de réception pour les données Winlog
  * Traite les requêtes POST JSON des clients logon, logout et matos
- * Stockage dans winlog.log avec ajout de l'IP source
+ * Stockage dans base SQLite avec ajout de l'IP source
  */
 
-// Configuration
-const EXPECTED_USER_AGENT = 'Winlog/0.1.0 (Windows)';
-const LOG_FILE = 'winlog.log';
-const VALID_ACTIONS = ['C', 'D', 'M']; // Connexion, Déconnexion, Matériel
+// Import de la configuration commune et des requêtes SQL
+require_once 'config.php';
+require_once 'index_sql.php';
 
 // Headers de sécurité
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 
+
+/**
+ * Fonction pour générer un identifiant de session simple
+ */
+function generateSessionId($username, $hostname, $timestamp) {
+    // Format simple: username@hostname@date_hash
+    $date = date('Y-m-d', strtotime($timestamp));
+    $hash = substr(hash('md5', $username . $hostname . $date . microtime()), 0, 6);
+    return $username . '@' . $hostname . '@' . $hash;
+}
+
+/**
+ * Fonction pour trouver une session ouverte le même jour
+ */
+function findOpenSessionToday($pdo, $username, $hostname, $timestamp) {
+    $stmt = $pdo->prepare(SQL_FIND_OPEN_SESSION_TODAY);
+    $stmt->execute([$username, $hostname, $timestamp]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Fonction pour trouver la dernière session ouverte (pour les déconnexions)
+ */
+function findLastOpenSession($pdo, $username, $hostname) {
+    $stmt = $pdo->prepare(SQL_FIND_LAST_OPEN_SESSION);
+    $stmt->execute([$username, $hostname]);
+    return $stmt->fetchColumn();
+}
+
+/**
+ * Fonction pour se connecter à la base SQLite
+ */
+function getDbConnection() {
+    try {
+        $pdo = new PDO('sqlite:' . DB_PATH);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Configuration optimale
+        foreach (SQLITE_PRAGMA_CONFIG as $pragma) {
+            $pdo->exec($pragma);
+        }
+        
+        return $pdo;
+    } catch (Exception $e) {
+        logError("Erreur connexion SQLite: " . $e->getMessage());
+        throw $e;
+    }
+}
 
 /**
  * Fonction pour logger les erreurs
@@ -153,15 +200,98 @@ if (!validateJsonStructure($data)) {
 $data['source_ip'] = getRealIpAddress();
 $data['server_timestamp'] = date('c'); // ISO 8601
 
-// Préparation de la ligne de log
-$logLine = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
-
-// Écriture dans le fichier de log
-$result = file_put_contents(LOG_FILE, $logLine, FILE_APPEND | LOCK_EX);
-if ($result === false) {
-    logError("Failed to write to log file");
+// Traitement de la session
+try {
+    $pdo = getDbConnection();
+    $pdo->beginTransaction();
+    
+    $session_uuid = null;
+    
+    if ($data['action'] === 'C') {
+        // Nouvelle connexion - vérifier s'il y a une session ouverte aujourd'hui
+        $openSession = findOpenSessionToday($pdo, $data['username'], $data['hostname'], $data['timestamp']);
+        
+        if ($openSession) {
+            // Il y a une session ouverte - la fermer automatiquement
+            logError("Session ouverte détectée pour " . $data['username'] . "@" . $data['hostname'] . " - fermeture automatique");
+            
+            // Créer un timestamp de déconnexion automatique (1 seconde avant la nouvelle connexion)
+            $autoDisconnectTime = date('c', strtotime($data['timestamp']) - 1);
+            
+            // Insérer la déconnexion automatique
+            $stmt = $pdo->prepare(SQL_INSERT_AUTO_DISCONNECT);
+            $stmt->execute([
+                $data['username'],
+                $autoDisconnectTime,
+                $data['hostname'],
+                $data['source_ip'],
+                $data['server_timestamp'],
+                $data['os_info']['os_name'] ?? null,
+                $data['os_info']['os_version'] ?? null,
+                $data['os_info']['kernel_version'] ?? null,
+                $openSession['session_uuid']
+            ]);
+            
+            logError("Déconnexion automatique insérée pour session: " . $openSession['session_uuid']);
+        }
+        
+        // Générer un nouvel UUID pour la nouvelle connexion
+        $session_uuid = generateSessionId($data['username'], $data['hostname'], $data['timestamp']);
+        
+    } elseif ($data['action'] === 'D') {
+        // Déconnexion - trouver la dernière session ouverte
+        $session_uuid = findLastOpenSession($pdo, $data['username'], $data['hostname']);
+        if (!$session_uuid) {
+            logError("Aucune session ouverte trouvée pour " . $data['username'] . "@" . $data['hostname']);
+            // Créer un UUID temporaire pour éviter les erreurs
+            $session_uuid = 'orphan_' . generateSessionId($data['username'], $data['hostname'], $data['timestamp']);
+        }
+    } else { // Action 'M' (matériel)
+        $session_uuid = 'hardware_' . generateSessionId($data['username'], $data['hostname'], $data['timestamp']);
+    }
+    
+    // Extraction des informations OS
+    $os_name = $data['os_info']['os_name'] ?? null;
+    $os_version = $data['os_info']['os_version'] ?? null; 
+    $kernel_version = $data['os_info']['kernel_version'] ?? null;
+    
+    // Préparation des données matérielles (JSON)
+    $hardware_info = null;
+    if (isset($data['hardware_info']) && $data['hardware_info'] !== null) {
+        $hardware_info = json_encode($data['hardware_info']);
+    }
+    
+    // Insertion en base
+    $stmt = $pdo->prepare(SQL_INSERT_EVENT);
+    
+    $result = $stmt->execute([
+        $data['username'],
+        $data['action'],
+        $data['timestamp'],
+        $data['hostname'],
+        $data['source_ip'],
+        $data['server_timestamp'],
+        $os_name,
+        $os_version,
+        $kernel_version,
+        $hardware_info,
+        $session_uuid
+    ]);
+    
+    if (!$result) {
+        throw new Exception("Erreur lors de l'insertion en base");
+    }
+    
+    $pdo->commit();
+    $eventId = $pdo->lastInsertId();
+    
+} catch (Exception $e) {
+    if (isset($pdo)) {
+        $pdo->rollback();
+    }
+    logError("Erreur SQLite: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Internal server error']);
+    echo json_encode(['error' => 'Database error']);
     exit;
 }
 
@@ -169,11 +299,13 @@ if ($result === false) {
 http_response_code(200);
 echo json_encode([
     'status' => 'success',
-    'message' => 'Data logged successfully',
+    'message' => 'Data stored in database',
+    'event_id' => $eventId,
+    'session_uuid' => $session_uuid,
     'action' => $data['action'],
     'username' => $data['username']
 ]);
 
 // Log de succès
-error_log("[Winlog] Data logged: " . $data['username'] . " - " . $data['action'] . " from " . $data['source_ip']);
+error_log("[Winlog] Data stored: ID=" . $eventId . " - " . $data['username'] . " - " . $data['action'] . " - Session: " . $session_uuid . " from " . $data['source_ip']);
 ?>
