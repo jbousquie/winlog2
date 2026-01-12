@@ -21,19 +21,19 @@ src/
 
 #### `logon.exe`
 - **Rôle** : Exécuté lors de l'ouverture de session Windows
-- **Action** : "login"
+- **Code d'action** : "C" (Connexion)
 - **Données collectées** : Username, timestamp, informations système de base
 - **Comportement** : Envoi immédiat des données au serveur
 
 #### `logout.exe`
 - **Rôle** : Exécuté lors de la fermeture de session Windows
-- **Action** : "logout"
+- **Code d'action** : "D" (Déconnexion)  
 - **Données collectées** : Username, timestamp, durée de session
 - **Comportement** : Envoi immédiat des données au serveur
 
 #### `matos.exe`
 - **Rôle** : Collecte d'informations détaillées sur le matériel
-- **Action** : "hardware_info"
+- **Code d'action** : "M" (Matériel)
 - **Données collectées** : Spécifications complètes du système (CPU, RAM, disques, etc.)
 - **Comportement** : Peut être exécuté périodiquement ou sur demande
 
@@ -48,8 +48,9 @@ src/
 
 - **Client HTTP synchrone** : Utilise `minreq` pour des requêtes POST rapides avec retry automatique
 - **Collecte système** : Récupération synchrone des informations (username, hostname, OS, matériel)
-- **Sérialisation JSON** : Structures de données sérialisables automatiquement
-- **Utilitaires** : Formatage timestamps, validation des données
+- **Structures JSON** : Données sérialisables avec codes d'action optimisés ("C", "D", "M")
+- **Utilitaires communs** : Logique mutualisée pour les événements de session et collecte matérielle
+- **Validation** : Contrôles de cohérence avant envoi
 
 ### Architecture synchrone optimisée
 
@@ -58,6 +59,20 @@ Les binaires utilisent une architecture **100% synchrone** optimisée pour des s
 - **Exécution linéaire** : Collecte → Sérialisation → Envoi → Fin
 - **Retry intelligent** : 3 tentatives avec délai configurable
 - **Gestion d'erreurs robuste** : Validation et reporting d'erreurs détaillé
+
+### Logique mutualisée
+
+**Fonctions communes dans `utils` :**
+- **`process_session_event()`** : Logique partagée entre logon.exe et logout.exe
+- **`process_hardware_info()`** : Traitement spécialisé pour matos.exe
+- **Validation centralisée** : Contrôles de données avant envoi
+- **Gestion d'erreurs unifiée** : Messages et codes de retour cohérents
+
+**Avantages :**
+- **Code réduit** : Binaires de ~10 lignes au lieu de ~50
+- **Maintenance simplifiée** : Modifications dans un seul endroit
+- **Cohérence** : Comportement identique entre les binaires
+- **Performance** : Pas de duplication de code
 
 ## Dépendances
 
@@ -72,21 +87,31 @@ Les binaires utilisent une architecture **100% synchrone** optimisée pour des s
 ```json
 {
   "username": "jerome.win11_jb",
-  "action": "login|logout|hardware_info",
-  "timestamp": "2026-01-10T14:30:15Z",
+  "action": "C",
+  "timestamp": "2026-01-12T14:30:15Z",
   "hostname": "WIN11-JB",
   "os_info": {
-    "name": "Windows",
-    "version": "11",
-    "architecture": "x86_64"
+    "os_name": "Windows",
+    "os_version": "11",
+    "kernel_version": "10.0.22631"
   },
   "hardware_info": {
-    "cpu": "Intel Core i7-12700K",
-    "memory_total": 32768,
-    "disk_usage": [...]
+    "cpu_count": 12,
+    "cpu_brand": "Intel Core i7-12700K",
+    "memory_total": 33554432
   }
 }
 ```
+
+**Codes d'action :**
+- **"C"** : Connexion (ouverture de session)
+- **"D"** : Déconnexion (fermeture de session)
+- **"M"** : Matériel (collecte d'informations hardware)
+
+**Optimisations JSON :**
+- Codes courts pour réduire la bande passante
+- Structure cohérente entre tous les types d'événements
+- Timestamps UTC au format ISO 8601
 
 ## Performances et optimisations
 

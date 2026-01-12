@@ -13,12 +13,12 @@ pub mod http_client {
     use crate::config;
     
     /// Client HTTP pour envoyer les données au serveur de monitoring
-    pub struct MonitoringClient {
+    pub struct WinlogClient {
         server_url: String,
         timeout: std::time::Duration,
     }
     
-    impl MonitoringClient {
+    impl WinlogClient {
         /// Crée une nouvelle instance du client HTTP
         pub fn new(server_url: Option<String>) -> Self {
             Self {
@@ -126,10 +126,10 @@ pub mod data_structures {
     
     impl WinlogData {
         /// Crée une nouvelle instance avec les informations de base
-        pub fn new(username: String, action: String) -> Self {
+        pub fn new(username: String, action_code: String) -> Self {
             Self {
                 username,
-                action,
+                action: action_code, // "C" = Connexion, "D" = Déconnexion, "M" = Matériel
                 timestamp: chrono::Utc::now().to_rfc3339(),
                 hostname: String::new(),
                 os_info: HashMap::new(),
@@ -141,13 +141,98 @@ pub mod data_structures {
 
 /// Module des utilitaires communs
 pub mod utils {
+    use crate::{data_structures::WinlogData, http_client::WinlogClient, system_info};
+    
     /// Génère un timestamp au format ISO 8601 UTC
     pub fn get_current_timestamp() -> String {
         chrono::Utc::now().to_rfc3339()
     }
     
     /// Valide les données avant envoi
-    pub fn validate_data(data: &crate::data_structures::WinlogData) -> bool {
+    pub fn validate_data(data: &WinlogData) -> bool {
         !data.username.is_empty() && !data.action.is_empty()
+    }
+    
+    /// Fonction commune pour traiter les événements de session (connexion/déconnexion)
+    pub fn process_session_event(action_code: &str, event_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+        println!("[{}] Démarrage du processus {}", event_name.to_uppercase(), event_name);
+        
+        // Collecte des informations système de base
+        let system_info = system_info::get_basic_system_info();
+        
+        // Création de la structure de données
+        let mut data = WinlogData::new(
+            system_info.get("username").unwrap_or(&"unknown".to_string()).clone(),
+            action_code.to_string(),
+        );
+        
+        // Ajout des informations système
+        data.hostname = system_info.get("hostname").unwrap_or(&"unknown".to_string()).clone();
+        data.os_info = system_info;
+        
+        // Validation des données
+        if !validate_data(&data) {
+            eprintln!("[{}] Erreur: Données invalides", event_name.to_uppercase());
+            return Err("Données invalides".into());
+        }
+        
+        // Envoi des données au serveur
+        let client = WinlogClient::new(None);
+        match client.send_data(&data) {
+            Ok(()) => {
+                let success_msg = match action_code {
+                    "C" => "Session ouverte avec succès",
+                    "D" => "Session fermée avec succès",
+                    _ => "Opération terminée avec succès"
+                };
+                println!("[{}] {}", event_name.to_uppercase(), success_msg);
+            }
+            Err(e) => {
+                eprintln!("[{}] Échec de l'envoi: {}", event_name.to_uppercase(), e);
+                return Err(e);
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Fonction spécialisée pour traiter les informations matérielles
+    pub fn process_hardware_info() -> Result<(), Box<dyn std::error::Error>> {
+        println!("[MATOS] Démarrage de la collecte d'informations matérielles");
+        
+        // Collecte des informations système de base
+        let basic_info = system_info::get_basic_system_info();
+        
+        // Collecte des informations matérielles détaillées
+        let hardware_info = system_info::get_hardware_info();
+        
+        // Création de la structure de données
+        let mut data = WinlogData::new(
+            basic_info.get("username").unwrap_or(&"system".to_string()).clone(),
+            "M".to_string(), // M = Matériel
+        );
+        
+        // Ajout des informations système et matérielles
+        data.hostname = basic_info.get("hostname").unwrap_or(&"unknown".to_string()).clone();
+        data.os_info = basic_info;
+        data.hardware_info = Some(hardware_info);
+        
+        // Validation des données
+        if !validate_data(&data) {
+            eprintln!("[MATOS] Erreur: Données invalides");
+            return Err("Données invalides".into());
+        }
+        
+        // Envoi des données au serveur
+        let client = WinlogClient::new(None);
+        match client.send_data(&data) {
+            Ok(()) => println!("[MATOS] Collecte matérielle terminée avec succès"),
+            Err(e) => {
+                eprintln!("[MATOS] Échec de l'envoi: {}", e);
+                return Err(e);
+            }
+        }
+        
+        Ok(())
     }
 }
