@@ -1,1 +1,35 @@
-/target
+# Rust build artifacts
+/client/target/
+/serveur/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo.lock for binaries (keep for libraries)
+# /client/Cargo.lock - gardé pour reproductibilité
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite databases (dev/test)
+*.db
+*.db-shm
+*.db-wal
+
+# PHP
+/serveur/php/vendor/
+/serveur/php/composer.lock
+
+# Logs
+*.log
+
+# Temporary files
+/tmp/
+*.tmp

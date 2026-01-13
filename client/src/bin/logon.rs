@@ -1,0 +1,11 @@
+//! # Binaire Logon
+//!
+//! Ce binaire est exécuté lors de l'ouverture d'une session (Windows/Linux).
+//! Il collecte les informations de base et les envoie au serveur de monitoring.
+
+use winlog_client::utils;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Action "C" = Connexion
+    utils::process_session_event("C", "logon")
+}
