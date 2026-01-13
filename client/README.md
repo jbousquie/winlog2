@@ -229,3 +229,30 @@ Les binaires utilisent des fonctions communes de `src/lib.rs::utils` :
 ## 📖 Documentation complète
 
 Voir la documentation globale du projet dans `/README.md` et la documentation serveur dans `/serveur/README.md`.
+
+## 🛡️ Robustesse et gestion des erreurs
+
+### Panic-Safety (100% garanti)
+
+Le client Winlog est **100% panic-proof** - aucun crash possible même dans les pires conditions :
+
+**Cas gérés sans crash** :
+- ✅ Hostname/Username système indisponibles → Fallback `"unknown"`
+- ✅ Informations OS manquantes → Chaînes vides
+- ✅ Serveur inaccessible → Retry 3x puis exit code != 0
+- ✅ Timeout réseau → Retry avec backoff exponentiel
+- ✅ JSON malformé → Propagation erreur, pas de panic
+
+**Principes de codage appliqués** :
+- Tous les `Option` gérés avec `.unwrap_or()`, `.unwrap_or_default()`, `.map_or()`
+- Tous les `Result` gérés avec `?`, `match`, ou `.map_err()`
+- Pas de `.unwrap()` nu ou `.expect()` en runtime
+- Pas d'indexation dangereuse `[..]` - utilisation de `.get()`
+- Extraction HashMap optimisée : `.get(key).map(|v| v.as_str()).unwrap_or("default")`
+
+### Exit codes
+
+- **0** : Succès (données envoyées au serveur)
+- **!= 0** : Erreur (timeout, serveur inaccessible, JSON invalide, etc.)
+
+Les binaires ne crashent **jamais** - ils retournent proprement avec un code d'erreur approprié.

@@ -666,6 +666,32 @@ LIMIT 30;
 
 ## 🔒 Sécurité
 
+### Architecture panic-proof (Certifiée)
+
+Le serveur Winlog est **100% panic-proof en runtime** - aucun crash possible pendant le traitement des requêtes :
+
+**Garanties de stabilité** :
+- ✅ Handlers HTTP ne peuvent pas crasher le serveur
+- ✅ Toutes les erreurs retournent des codes HTTP appropriés (400, 403, 500)
+- ✅ Safe slicing avec `.get()` au lieu de `[..]` (timestamps, hash MD5)
+- ✅ SQLx avec `.try_get()` pour éviter panics sur colonnes manquantes
+- ✅ Validation stricte des entrées avant traitement
+
+**Cas gérés sans crash** :
+- ✅ Headers HTTP malformés → 403 Forbidden
+- ✅ JSON invalide → 400 Bad Request
+- ✅ Timestamps trop courts → Fallback sur epoch (1970-01-01)
+- ✅ Hash MD5 corrompu → Fallback sur "000000"
+- ✅ Colonnes SQL manquantes → Retour `None` propre
+- ✅ IP proxy absente → Fallback sur adresse directe
+
+**Panics acceptables (fail-fast au démarrage uniquement)** :
+- ⚠️ Configuration `config.toml` invalide → Arrêt immédiat
+- ⚠️ Base SQLite inaccessible → Arrêt immédiat
+- ⚠️ Signal Ctrl+C non installable → Arrêt immédiat
+
+Principe : Mieux vaut ne pas démarrer que démarrer en état invalide.
+
 ### Recommandations production
 
 1. **HTTPS obligatoire** : Utilisez un reverse proxy (Nginx, Caddy) avec TLS

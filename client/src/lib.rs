@@ -165,14 +165,21 @@ pub mod utils {
         // Collecte des informations système de base
         let system_info = system_info::get_basic_system_info();
         
-        // Création de la structure de données
-        let mut data = WinlogData::new(
-            system_info.get("username").unwrap_or(&"unknown".to_string()).clone(),
-            action_code.to_string(),
-        );
+        // Extraction username - évite allocation temporaire avec map_or
+        let username = system_info.get("username")
+            .map(|s| s.as_str())
+            .unwrap_or("unknown")
+            .to_string();
         
-        // Ajout des informations système
-        data.hostname = system_info.get("hostname").unwrap_or(&"unknown".to_string()).clone();
+        // Création de la structure de données
+        let mut data = WinlogData::new(username, action_code.to_string());
+        
+        // Extraction hostname - évite allocation temporaire
+        data.hostname = system_info.get("hostname")
+            .map(|s| s.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        
         data.os_info = system_info;
         
         // Validation des données
@@ -211,14 +218,21 @@ pub mod utils {
         // Collecte des informations matérielles détaillées
         let hardware_info = system_info::get_hardware_info();
         
-        // Création de la structure de données
-        let mut data = WinlogData::new(
-            basic_info.get("username").unwrap_or(&"system".to_string()).clone(),
-            "M".to_string(), // M = Matériel
-        );
+        // Extraction username - évite allocation temporaire
+        let username = basic_info.get("username")
+            .map(|s| s.as_str())
+            .unwrap_or("system")
+            .to_string();
         
-        // Ajout des informations système et matérielles
-        data.hostname = basic_info.get("hostname").unwrap_or(&"unknown".to_string()).clone();
+        // Création de la structure de données
+        let mut data = WinlogData::new(username, "M".to_string());
+        
+        // Extraction hostname - évite allocation temporaire
+        data.hostname = basic_info.get("hostname")
+            .map(|s| s.as_str())
+            .unwrap_or("unknown")
+            .to_string();
+        
         data.os_info = basic_info;
         data.hardware_info = Some(hardware_info);
         

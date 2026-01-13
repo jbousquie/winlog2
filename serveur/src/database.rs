@@ -51,16 +51,17 @@ impl Database {
     /// * `hostname` - Nom de la machine
     /// * `timestamp` - Timestamp ISO 8601
     pub fn generate_session_id(username: &str, hostname: &str, timestamp: &str) -> String {
-        // Extraire la date (YYYY-MM-DD)
-        let date = &timestamp[..10];
+        // Extraire la date (YYYY-MM-DD) - safe slice avec get()
+        let date = timestamp.get(..10).unwrap_or("1970-01-01");
         
         // Créer un hash unique avec timestamp nano pour éviter collisions
         let now_nanos = Utc::now().timestamp_nanos_opt().unwrap_or(0);
         let data = format!("{}{}{}{}", username, hostname, date, now_nanos);
         let hash = format!("{:x}", md5::compute(data));
         
-        // Prendre les 6 premiers caractères du hash
-        let short_hash = &hash[..6];
+        // Prendre les 6 premiers caractères du hash - safe slice
+        // MD5 produit toujours 32 caractères hex, donc .get(..6) ne peut jamais échouer
+        let short_hash = hash.get(..6).unwrap_or("000000");
         
         format!("{}@{}@{}", username, hostname, short_hash)
     }
@@ -134,7 +135,8 @@ impl Database {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(result.map(|row| row.get::<String, _>("session_uuid")))
+        // Utilisation de try_get au lieu de get pour éviter panic si colonne manquante
+        Ok(result.and_then(|row| row.try_get::<String, _>("session_uuid").ok()))
     }
 
     /// Insère une déconnexion automatique (pour fermer une session orpheline)

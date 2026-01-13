@@ -11,6 +11,52 @@ I don't run the code to test it, I just build it. The developer will run the cod
 
 I use the agentic tools like edit_file or patch to modify the code. If needed, I can also run commands from the shell, like cd, cat, printf, sed.
 
+## Panic-Safety Requirements (Critical for Production)
+
+**NEVER** allow panics in runtime code. All production code must be panic-proof.
+
+### Forbidden Patterns (Will cause panics):
+- ❌ `.unwrap()` without explicit justification
+- ❌ `.expect()` in runtime code (only acceptable at startup for fail-fast)
+- ❌ Direct indexing: `array[i]`, `string[start..end]`
+- ❌ `.get().unwrap()` chains
+- ❌ `panic!()` macro in runtime paths
+
+### Required Safe Patterns:
+- ✅ Use `.unwrap_or()`, `.unwrap_or_else()`, `.unwrap_or_default()` with explicit fallbacks
+- ✅ Use `.get()` with safe slicing: `slice.get(start..end).unwrap_or_default()`
+- ✅ Use `if let Ok()` / `match` for Result handling
+- ✅ Use `if let Some()` / `match` for Option handling
+- ✅ For HashMap: `.get(key).map(|v| v.as_str()).unwrap_or("default")` (avoids temp allocation)
+- ✅ For SQLx: Use `.try_get()` instead of `.get()` to convert Result → Option
+- ✅ Propagate errors with `?` operator or return `Result<T, E>`
+- ✅ HTTP handlers must never panic - return appropriate status codes (400, 403, 500)
+
+### Acceptable Panics (Fail-Fast Pattern):
+- ⚠️ **Startup initialization only**: Configuration loading, database connection
+- ⚠️ Use `.expect("descriptive message")` with clear reasoning
+- ⚠️ Principle: Better not to start than to start in invalid state
+
+### Example Transformations:
+
+**Bad (will panic):**
+```rust
+let date = &timestamp[..10];  // Panic if timestamp.len() < 10
+let value = map.get("key").unwrap();  // Panic if key missing
+```
+
+**Good (panic-proof):**
+```rust
+let date = timestamp.get(..10).unwrap_or("1970-01-01");
+let value = map.get("key").map(|v| v.as_str()).unwrap_or("default");
+```
+
+### Verification:
+- Run `cargo clippy` to detect potential panics
+- Search codebase for `unwrap()`, `expect()`, `[..]` patterns
+- Ensure all Result/Option types are handled explicitly
+- Test edge cases: empty strings, None values, missing keys
+
 # Description Technique du Projet Winlog 2 en Rust
 
 ## Vue d'ensemble
@@ -331,6 +377,7 @@ curl -X POST http://127.0.0.1:3000/api/v1/events \
 - **Constantes** : Toujours utiliser `config.rs` / `config.toml`, jamais de hardcode
 - **Sécurité** : Pas de `unwrap()` sans gestion erreur, préférer `?` ou `match`
 - **Binaires** : Garder les binaires minimalistes (déléguer logique à `lib.rs`)
+- **Panic-Safety** : Code runtime doit être 100% panic-proof (voir section Role ci-dessus)
 
 ### Code SQL (Base SQLite)
 - **Indexes** : Toujours indexer colonnes dans WHERE/JOIN
@@ -338,9 +385,11 @@ curl -X POST http://127.0.0.1:3000/api/v1/events \
 - **PRAGMA** : Configurer WAL mode + cache_size pour performances
 - **Requêtes** : Tester avec `EXPLAIN QUERY PLAN` pour optimisation
 - **Compile-time checks** : SQLx vérifie requêtes à la compilation
+- **Safe queries** : Utiliser `.try_get()` au lieu de `.get()` pour éviter panics
 
 ### Documentation
 - Synchroniser README.md avec chaque changement de fonctionnalité
 - Expliquer le "pourquoi" pas seulement le "quoi"
 - Exemples concrets de déploiement et utilisation
 - Maintenir la roadmap à jour dans README.md global
+- Documenter les choix de panic-safety (fallbacks, error handling)

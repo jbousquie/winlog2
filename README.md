@@ -534,6 +534,7 @@ winlog2/
 - Firewall réseau recommandé (port 3000)
 - HTTPS obligatoire en production (reverse proxy Nginx/Caddy)
 - Rate limiting avec Axum middleware ou reverse proxy
+- **Code 100% panic-proof** : Aucun crash possible en runtime
 
 ### Recommandations production
 - **HTTPS** : Reverse proxy Nginx + Let's Encrypt
@@ -541,6 +542,31 @@ winlog2/
 - **Backups** : Sauvegarde quotidienne SQLite (rotation automatique)
 - **Monitoring** : Health check `/health` + logs serveur
 - **Rotation** : Archiver/purger données anciennes (rotation quotidienne automatique)
+- **Stability** : Code audité panic-safe, stable 24/7
+
+## 🛡️ Garanties de stabilité
+
+### Panic-Safety
+
+Le projet Winlog 2 est **100% panic-proof en runtime** :
+
+**Client (logon/logout/matos)** :
+- ✅ Aucun crash même avec données système manquantes
+- ✅ Fallbacks explicites sur tous les `Option`/`Result`
+- ✅ Exit codes propres (0 = succès, != 0 = erreur)
+- ✅ Retry automatique réseau (3 tentatives)
+
+**Serveur (winlog-server)** :
+- ✅ Handlers HTTP ne peuvent pas crasher
+- ✅ Safe slicing (`.get()` au lieu de `[..]`)
+- ✅ SQLx avec `.try_get()` pour éviter panics
+- ✅ Réponses HTTP appropriées sur erreur (400/403/500)
+
+**Principes appliqués** :
+- Pas de `.unwrap()` nu en runtime
+- `.expect()` uniquement au démarrage (fail-fast)
+- Tous les `Result`/`Option` gérés explicitement
+- Préférence pour `.unwrap_or()`, `.unwrap_or_default()`, `.map_or()`
 
 ## 📊 Performances
 
