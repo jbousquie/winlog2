@@ -9,12 +9,12 @@ pub mod config;
 /// Module de gestion des requêtes HTTP vers le serveur de monitoring
 pub mod http_client {
     use minreq;
-    use std::collections::HashMap;
     use crate::config;
     
     /// Client HTTP pour envoyer les données au serveur de monitoring
     pub struct WinlogClient {
         server_url: String,
+        #[allow(dead_code)]  // Timeout conservé pour évolutions futures
         timeout: std::time::Duration,
     }
     
@@ -78,7 +78,6 @@ pub mod system_info {
     /// Collecte les informations de base du système
     pub fn get_basic_system_info() -> HashMap<String, String> {
         let mut info = HashMap::new();
-        let sys = System::new_all();
         
         // Username de l'utilisateur actuel
         info.insert("username".to_string(), whoami::username());

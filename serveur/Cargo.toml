@@ -1,0 +1,43 @@
+[package]
+name = "winlog-server"
+version = "0.1.0"
+edition = "2021"
+authors = ["Winlog Team"]
+description = "Serveur de collecte d'événements de monitoring Winlog (Rust/Axum/SQLite)"
+
+[dependencies]
+# Framework web Axum (simplicité + stabilité)
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+
+# Base de données SQLite avec SQLx
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono"] }
+
+# Sérialisation JSON
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Gestion des dates
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utilitaires HTTP
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+tower = "0.4"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Configuration TOML
+toml = "0.8"
+
+# Utilitaires
+uuid = { version = "1.6", features = ["v4", "serde"] }
+thiserror = "1.0"
+md5 = "0.7"
+
+[profile.release]
+strip = true          # Supprime les symboles de debug
+lto = true           # Link-Time Optimization
+opt-level = "z"      # Optimise pour la taille du binaire
+codegen-units = 1    # Optimisation maximale

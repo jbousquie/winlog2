@@ -1,0 +1,41 @@
+# Configuration du serveur Winlog
+# Ce fichier TOML centralise tous les paramètres du serveur de collecte
+
+[server]
+# Adresse d'écoute du serveur HTTP
+# Pour écouter sur toutes les interfaces : "0.0.0.0:3000"
+# Pour localhost uniquement : "127.0.0.1:3000"
+host = "127.0.0.1"
+port = 3000
+
+[database]
+# Chemin vers la base de données SQLite
+# Utilise la nouvelle structure partitionnée (events_today + events_history)
+path = "/var/www/ferron/winlog/data/winlog.db"
+
+# Configuration des PRAGMA SQLite
+# journal_mode = WAL permet les lectures concurrentes
+# synchronous = NORMAL balance performance/sécurité
+# busy_timeout = durée d'attente avant échec (30s)
+# cache_size = nombre de pages en cache (10000 ≈ 40MB)
+pragma_journal_mode = "WAL"
+pragma_synchronous = "NORMAL"
+pragma_busy_timeout = 30000
+pragma_cache_size = 10000
+
+[security]
+# User-Agent attendu des clients (validation stricte)
+# Format : "Winlog/VERSION (OS)"
+expected_user_agent = "Winlog/0.1.0"
+
+# Actions autorisées dans les événements
+# C = Connexion, D = Déconnexion, M = Matériel
+valid_actions = ["C", "D", "M"]
+
+[logging]
+# Niveau de log : trace, debug, info, warn, error
+# Recommandé : "info" en production, "debug" pour développement
+level = "info"
+
+# Format de log : "compact" ou "full"
+format = "compact"
