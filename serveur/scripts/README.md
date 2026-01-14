@@ -31,49 +31,8 @@ SELECT * FROM events_all WHERE username='jerome';
 
 ## Scripts disponibles
 
-### 0. migrate_to_new_structure.sh ⭐
-**Migration depuis l'ancienne structure (table unique 'events')**
-
-```bash
-./migrate_to_new_structure.sh
-```
-
-**⚠️ À utiliser UNIQUEMENT si vous avez déjà une base avec l'ancienne structure !**
-
-**Actions effectuées :**
-- Crée un backup automatique avec timestamp
-- Crée les nouvelles tables `events_today` et `events_history`
-- Migre les données du jour vers `events_today`
-- Migre les données anciennes vers `events_history`
-- Crée tous les index optimisés
-- Crée la vue `events_all`
-- Renomme l'ancienne table en `events_old` (conservée pour sécurité)
-
-**Sortie typique :**
-```
-=== Migration vers la nouvelle structure partitionnée ===
-✓ Backup créé : serveur/data/winlog_backup_20260113_120230.db
-✓ Migration effectuée avec succès
-
-Statistiques après migration :
-  - events_today : 42 enregistrements
-  - events_history : 358 enregistrements
-  - events_old (backup) : 400 enregistrements
-  - TOTAL migré : 400 / 400
-
-✓ Vérification : Toutes les données ont été migrées correctement
-```
-
-**Nettoyage post-migration :**
-```bash
-# Après avoir vérifié que tout fonctionne
-sqlite3 serveur/data/winlog.db 'DROP TABLE events_old;'
-```
-
----
-
 ### 1. create_base.sh
-**Création de la base avec la nouvelle structure (installation neuve)**
+**Création de la base avec la structure partitionnée (installation neuve)**
 
 ```bash
 ./create_base.sh
@@ -194,28 +153,7 @@ tail -f serveur/data/rotation.log
 
 ## Workflow complet
 
-### Migration depuis ancienne structure
-
-```bash
-cd /home/jerome/scripts/rust/winlog2/serveur/scripts
-
-# 1. Migrer la base existante
-./migrate_to_new_structure.sh
-
-# 2. Adapter index.php (voir section "Migration PHP")
-# Remplacer toutes les requêtes 'events' par 'events_today'
-
-# 3. Tester que tout fonctionne
-
-# 4. Nettoyer l'ancienne table
-sqlite3 serveur/data/winlog.db 'DROP TABLE events_old;'
-
-# 5. Configurer le cron pour rotation automatique
-crontab -e
-# Ajouter : 0 1 * * * /path/to/rotate_daily.sh
-```
-
-### Installation neuve (sans données existantes)
+### Installation neuve
 
 ```bash
 cd /home/jerome/scripts/rust/winlog2/serveur/scripts
@@ -226,9 +164,6 @@ cd /home/jerome/scripts/rust/winlog2/serveur/scripts
 # 2. Configurer le cron pour rotation automatique
 crontab -e
 # Ajouter : 0 1 * * * /path/to/rotate_daily.sh
-
-# 3. Adapter index.php pour utiliser events_today
-# (voir section "Migration PHP" ci-dessous)
 ```
 
 ### Maintenance
@@ -247,29 +182,7 @@ crontab -e
 
 ---
 
-## Migration du code PHP
-
-### Modifications requises dans index.php
-
-**Avant (ancienne structure) :**
-```php
-$stmt = $pdo->prepare("INSERT INTO events (...) VALUES (...)");
-$openSession = $pdo->query("SELECT * FROM events WHERE action='C' ...");
-```
-
-**Après (nouvelle structure) :**
-```php
-// Toutes les insertions vont dans events_today
-$stmt = $pdo->prepare("INSERT INTO events_today (...) VALUES (...)");
-
-// Recherche de sessions ouvertes (seulement dans today)
-$openSession = $pdo->query("SELECT * FROM events_today WHERE action='C' ...");
-
-// Requêtes globales (today + history)
-$allSessions = $pdo->query("SELECT * FROM events_all WHERE username=?");
-```
-
-### Requêtes SQL courantes
+## Requêtes SQL utiles
 
 ```sql
 -- Sessions actives en ce moment (rapide)
@@ -293,13 +206,13 @@ WHERE DATE(timestamp) = '2026-01-12';
 
 ---
 
-## Performances attendues
+## Performances
 
-| Opération | events (ancienne) | events_today (nouvelle) | Gain |
-|-----------|-------------------|-------------------------|------|
-| SELECT sessions actives | ~50ms (10k lignes) | ~5ms (100 lignes) | **10x** |
-| INSERT événement | ~10ms | ~5ms | **2x** |
-| Recherche historique | ~100ms | ~80ms (via events_all) | **1.2x** |
+| Opération | Performance |
+|-----------|-------------|
+| SELECT sessions actives | ~5ms (100 lignes) |
+| INSERT événement | ~5ms |
+| Recherche historique | ~80ms (via events_all) |
 
 **Avantages :**
 - ✅ Table `events_today` toujours petite (~100-1000 lignes max)
@@ -352,13 +265,11 @@ sqlite3 serveur/data/winlog.db "PRAGMA integrity_check;"
 ## Notes importantes
 
 1. **Rotation quotidienne obligatoire** : Sans rotation, `events_today` grossit indéfiniment et perd son avantage performance
-2. **Backup avant migration** : Sauvegarder l'ancienne base avant d'exécuter `create_base.sh`
-3. **Compatibilité PHP** : Les scripts PHP existants doivent être adaptés pour utiliser `events_today`
-4. **Mode WAL** : Permet les lectures concurrentes pendant les écritures (essentiel pour la performance)
+2. **Backup réguliers** : Sauvegarder la base régulièrement (rotation crée des backups automatiques)
+3. **Mode WAL** : Permet les lectures concurrentes pendant les écritures (essentiel pour la performance)
 
 ---
 
 ## Prochaine étape : Migration vers Rust
 
-Ces scripts préparent la structure pour la future migration du serveur PHP vers Rust (Axum + SQLx).
-Le schéma SQLite restera identique, seul le code du serveur HTTP changera.
+Le schéma SQLite est compatible avec le serveur Rust (Axum + SQLx) actuel.

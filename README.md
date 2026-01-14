@@ -259,12 +259,11 @@ pub const USER_AGENT: &str = "Winlog/0.1.0";
 - `purge_base.sh` : Vidage sélectif (--today/--history/--all)
 - `delete_base.sh` : Suppression complète
 - `rotate_daily.sh` : Rotation automatique quotidienne (cron)
-- `migrate_to_new_structure.sh` : Migration depuis structure legacy
 
 **Performances mesurées** :
-- 5000 requêtes/seconde (vs 100 req/s en PHP)
-- Latence P50 : 0.6ms (vs 30ms PHP)
-- Mémoire : ~10 MB (vs ~50 MB PHP)
+- 5000 requêtes/seconde
+- Latence P50 : 0.6ms
+- Mémoire : ~10 MB
 - Binaire : 3.1 MB standalone
 
 **Logique de gestion** :
@@ -613,8 +612,7 @@ LIMIT 20;
 
 - **Client Rust** : `/client/README.md` - Compilation, configuration, déploiement Windows/Linux
 - **Serveur Rust** : `/serveur/README.md` - Architecture Axum, API REST, base SQLite partitionnée
-- **Scripts bash** : `/serveur/scripts/README.md` - Gestion base de données (création, rotation, migration)
-- **Migration BDD** : `/serveur/MIGRATION_BDD_2026.md` - Guide migration structure partitionnée
+- **Scripts bash** : `/serveur/scripts/README.md` - Gestion base de données (création, rotation, purge)
 - **Instructions dev** : `/.github/copilot-instructions.md` - Guide développement
 
 ## 🛠️ Développement
@@ -728,10 +726,10 @@ Le projet Winlog 2 est **100% panic-proof en runtime** :
 - **Réseau** : ~500 octets par événement
 
 ### Serveur Rust (Axum + SQLx)
-- **Débit** : ~5000 req/s (vs 100 req/s PHP)
+- **Débit** : ~5000 req/s
 - **Latence** : 0.6ms P50, 3ms P99 (réseau local)
 - **Concurrence** : 10 000+ connexions simultanées
-- **Mémoire** : ~10 MB (vs ~50 MB PHP)
+- **Mémoire** : ~10 MB
 - **Stockage** : ~250 octets par événement en DB
 - **Requêtes** : <5ms pour sessions ouvertes (table partitionnée)
 

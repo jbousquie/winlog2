@@ -213,13 +213,23 @@ $env:Path += ";C:\msys64\mingw64\bin"
 **Cause** : Les variables d'environnement utilisateur ne sont pas toujours chargées dans les sessions SSH
 
 **Solution** :
+
+**Option 1 - Utiliser le script fourni (recommandé)** :
+```powershell
+# Le projet inclut un script prêt à l'emploi
+. .\ssh-init.ps1
+```
+
+**Option 2 - Configuration manuelle** :
 ```powershell
 # Dans chaque session SSH, ajouter manuellement :
 $env:Path += ";C:\msys64\mingw64\bin"
+```
 
-# Ou créer un script d'initialisation
-echo '$env:Path += ";C:\msys64\mingw64\bin"' > ssh-init.ps1
-. .\ssh-init.ps1
+**Option 3 - Automatisation permanente** :
+```powershell
+# Ajouter au profil PowerShell pour charger automatiquement
+echo '. C:\path\to\winlog2\ssh-init.ps1' >> $PROFILE
 ```
 
 ---

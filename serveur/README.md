@@ -6,8 +6,8 @@ Le serveur Winlog est une API REST moderne développée en Rust, conçue pour co
 
 ### Caractéristiques principales
 
-- ⚡ **Performances** : 50x plus rapide que PHP (~5000 req/s vs ~100 req/s)
-- 💾 **Mémoire optimisée** : ~10 MB vs ~50 MB (PHP)
+- ⚡ **Performances** : ~5000 requêtes/seconde
+- 💾 **Mémoire optimisée** : ~10 MB en production
 - 🔒 **Type-safe** : Vérification compile-time des requêtes SQL avec SQLx
 - 🚀 **Async** : Architecture asynchrone avec Tokio pour gérer des milliers de connexions
 - 📊 **Base partitionnée** : Séparation events_today/events_history pour performances optimales
@@ -64,16 +64,13 @@ serveur/
 │   ├── create_base.sh        # Création base partitionnée
 │   ├── delete_base.sh        # Suppression complète
 │   ├── purge_base.sh         # Vidage données (--today/--history/--all)
-│   ├── rotate_daily.sh       # Rotation quotidienne (cron)
-│   └── migrate_to_new_structure.sh  # Migration depuis ancienne structure
+│   └── rotate_daily.sh       # Rotation quotidienne (cron)
 │
 ├── config.toml        # Configuration runtime
 ├── Cargo.toml         # Dépendances Rust
 └── README.md          # Cette documentation
 
 Documentation annexe :
-├── NOUVELLE_STRUCTURE.md      # Spécifications base partitionnée
-├── MIGRATION_BDD_2026.md      # Guide migration structure
 └── scripts/README.md          # Documentation scripts bash
 ```
 
@@ -478,35 +475,18 @@ crontab -e
 4. VACUUM (optimisation)
 5. Logs dans `/var/log/winlog_rotation.log`
 
-### migrate_to_new_structure.sh
-
-**Fonction** : Migration depuis ancienne structure monolithique (table `events` unique)
-
-```bash
-./scripts/migrate_to_new_structure.sh
-
-# Étapes automatisées :
-# 1. Backup complet de l'ancienne base
-# 2. Création nouvelle structure partitionnée
-# 3. Migration données anciennes → nouvelles tables
-# 4. Conservation table "events" renommée en "events_old"
-# 5. Vérification intégrité
-```
-
-**Important** : Ce script est à usage unique lors de la migration PHP → Rust
-
 ## 📊 Performances et optimisations
 
-### Comparaison PHP vs Rust
+### Performances mesurées
 
-| Métrique | PHP (Apache) | Rust (Axum) | Amélioration |
-|----------|--------------|-------------|--------------|
-| Requêtes/sec | ~100 req/s | ~5000 req/s | **50x** |
-| Latence P50 | 30 ms | 0.6 ms | **50x** |
-| Latence P99 | 200 ms | 3 ms | **66x** |
-| Mémoire | ~50 MB | ~10 MB | **5x** |
-| Taille binaire | N/A | 3.1 MB | Standalone |
-| Concurrence | ~50 | ~10000 | **200x** |
+| Métrique | Valeur |
+|----------|--------|
+| Requêtes/sec | ~5000 req/s |
+| Latence P50 | 0.6 ms |
+| Latence P99 | 3 ms |
+| Mémoire | ~10 MB |
+| Taille binaire | 3.1 MB (standalone) |
+| Concurrence | ~10000 connexions |
 
 ### Configuration SQLite optimisée
 
@@ -537,17 +517,15 @@ SqlitePoolOptions::new()
 
 ### Architecture partitionnée
 
-**Avant (table unique `events`)** :
-- 10 000+ rows → Scans de table coûteux
-- Index large → Cache inefficace
-- VACUUM lent (toute la table)
+### Architecture partitionnée
 
-**Après (tables partitionnées)** :
+La base SQLite utilise une architecture partitionnée pour des performances optimales :
+
 - `events_today` : ~100 rows → Scans instantanés
 - `events_history` : lecture seule → Pas de verrous
 - Rotation quotidienne → VACUUM rapide
 
-**Gain mesurable** : Requête "sessions ouvertes" passe de 50ms à 5ms (**10x**)
+**Performances** : Requête "sessions ouvertes" s'exécute en ~5ms
 
 ## 🔍 Monitoring et logs
 
@@ -686,8 +664,6 @@ cargo build --release
 
 ### Fichiers de référence
 
-- **`NOUVELLE_STRUCTURE.md`** : Spécifications détaillées de l'architecture partitionnée
-- **`MIGRATION_BDD_2026.md`** : Guide complet de migration PHP → Rust
 - **`scripts/README.md`** : Documentation exhaustive des scripts bash
 - **`SYNTHESE_VISUELLE.txt`** : Vue d'ensemble visuelle du projet
 

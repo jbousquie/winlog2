@@ -106,7 +106,6 @@ Le repository est organisé en **2 parties distinctes** :
 - **`purge_base.sh`** : Vidage sélectif (--today/--history/--all)
 - **`delete_base.sh`** : Suppression complète avec confirmation
 - **`rotate_daily.sh`** : Rotation quotidienne automatique (cron 1h)
-- **`migrate_to_new_structure.sh`** : Migration depuis structure legacy
 
 #### Base SQLite partitionnée
 - **events_today** : Événements du jour (~100 rows, lectures/écritures rapides)
@@ -195,13 +194,13 @@ Le projet utilise une **architecture 100% synchrone** optimisée pour des script
 - **Structure client/serveur** : Séparation claire entre code client Rust et serveur Rust
 - **Documentation dédiée** : README.md pour chaque partie + README.md global
 - **Support multi-plateforme** : Structure adaptée Windows + Linux (client et serveur)
-- **Migration complète** : Serveur PHP remplacé par Axum + SQLx + SQLite partitionné
+- **Stack complète Rust** : Client et serveur en Rust pour cohérence et performances
 
-### Migration serveur Rust (Janvier 2026)
-- **Framework Axum 0.7** : API REST asynchrone haute performance (50x plus rapide que PHP)
+### Serveur Rust Axum (Janvier 2026)
+- **Framework Axum 0.7** : API REST asynchrone haute performance (~5000 req/s)
 - **SQLx 0.8** : ORM avec compile-time SQL checks, pool de connexions
-- **Base partitionnée** : events_today + events_history pour performances 10x supérieures
-- **Scripts bash** : Gestion DB (création, rotation, purge, migration)
+- **Base partitionnée** : events_today + events_history pour performances optimales
+- **Scripts bash** : Gestion DB (création, rotation, purge)
 - **Configuration TOML** : Runtime config dans config.toml (host, port, PRAGMA SQLite)
 - **Binaire standalone** : 3.1 MB stripped, aucune dépendance système
 
@@ -212,15 +211,15 @@ Le projet utilise une **architecture 100% synchrone** optimisée pour des script
 - **Maintenabilité** : Séparation claire entre logique métier et paramètres de configuration
 
 ### Architecture synchrone finalisée (Janvier 2026)
-- **Optimisation** : Passage à une architecture 100% synchrone pour les performances
-- **Client HTTP** : Remplacement par `minreq` pour un client léger sans dépendances async
-- **Binaires** : Suppression de tous les `async/await` pour des `main()` synchrones
-- **Performance** : Démarrage instantané et empreinte mémoire réduite
+- **Optimisation** : Architecture 100% synchrone côté client pour performances optimales
+- **Client HTTP** : Utilisation de `minreq` pour un client léger sans dépendances async
+- **Binaires** : Fonctions `main()` synchrones pour démarrage instantané
+- **Performance** : Empreinte mémoire réduite et temps de lancement minimal
 - **Compilation** : Support MinGW/GCC et MSVC pour Windows
 
 ### Refactorisation avec logique mutualisée (Janvier 2026)
 - **Déduplication majeure** : Création de `process_session_event()` commune à logon/logout
-- **Codes d'action optimisés** : "C"/"D"/"M" remplacent les chaînes longues
+- **Codes d'action optimisés** : "C"/"D"/"M" pour communication compacte
 - **Binaires ultra-légers** : 8-10 lignes de code par binaire
 - **JSON compact** : Réduction de 40% de la taille des payloads
 - **Maintenance simplifiée** : Toute la logique centralisée dans utils
@@ -254,13 +253,10 @@ winlog2/
 │   │   ├── purge_base.sh      # Vidage sélectif
 │   │   ├── delete_base.sh     # Suppression complète
 │   │   ├── rotate_daily.sh    # Rotation quotidienne
-│   │   ├── migrate_to_new_structure.sh  # Migration legacy
 │   │   └── README.md          # Documentation scripts
 │   ├── Cargo.toml             # Dépendances serveur
 │   ├── config.toml            # Configuration runtime
-│   ├── README.md              # Documentation serveur (814 lignes)
-│   ├── NOUVELLE_STRUCTURE.md  # Spécifications base partitionnée
-│   ├── MIGRATION_BDD_2026.md  # Guide migration
+│   ├── README.md              # Documentation serveur
 │   └── target/release/winlog-server  # Binaire serveur (3.1 MB)
 │
 ├── README.md                   # Documentation globale du projet
@@ -358,7 +354,7 @@ curl -X POST http://127.0.0.1:3000/api/v1/events \
 3. **Modification base de données** :
    - Éditer `serveur/scripts/create_base.sh` (schéma SQLite)
    - Adapter requêtes dans `serveur/src/database.rs` (SQLx)
-   - Tester migration avec `migrate_to_new_structure.sh`
+   - Tester : Créer une base test et vérifier avec des requêtes
 
 4. **Changements globaux** :
    - Mettre à jour `README.md` global
