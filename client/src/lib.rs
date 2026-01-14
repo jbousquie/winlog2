@@ -22,8 +22,8 @@ pub mod http_client {
         /// Crée une nouvelle instance du client HTTP
         pub fn new(server_url: Option<String>) -> Self {
             Self {
-                server_url: server_url.unwrap_or_else(|| config::DEFAULT_SERVER_URL.to_string()),
-                timeout: std::time::Duration::from_secs(config::DEFAULT_TIMEOUT),
+                server_url: server_url.unwrap_or_else(|| config::server_url()),
+                timeout: std::time::Duration::from_secs(config::timeout()),
             }
         }
         
@@ -34,13 +34,13 @@ pub mod http_client {
             // Debug: Affichage du JSON envoyé
             println!("JSON envoyé: {}", json_data);
             
-            for attempt in 1..=config::MAX_RETRIES {
-                println!("Tentative {}/{} d'envoi vers {}", attempt, config::MAX_RETRIES, self.server_url);
+            for attempt in 1..=config::max_retries() {
+                println!("Tentative {}/{} d'envoi vers {}", attempt, config::max_retries(), self.server_url);
                 
                 match minreq::post(&self.server_url)
                     .with_header("Content-Type", "application/json")
-                    .with_header("User-Agent", config::USER_AGENT)
-                    .with_timeout(config::DEFAULT_TIMEOUT)
+                    .with_header("User-Agent", &config::user_agent())
+                    .with_timeout(config::timeout())
                     .with_body(json_data.clone())
                     .send()
                 {
@@ -60,8 +60,8 @@ pub mod http_client {
                     }
                 }
                 
-                if attempt < config::MAX_RETRIES {
-                    std::thread::sleep(std::time::Duration::from_millis(config::RETRY_DELAY_MS));
+                if attempt < config::max_retries() {
+                    std::thread::sleep(std::time::Duration::from_millis(config::retry_delay_ms()));
                 }
             }
             

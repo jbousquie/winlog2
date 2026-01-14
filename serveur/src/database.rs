@@ -2,12 +2,15 @@
 //!
 //! Gère la connexion SQLite, les requêtes SQL et la logique métier
 //! liée aux sessions (fermeture auto, génération UUID, etc.).
+//!
+//! Les requêtes SQL sont centralisées dans le module `queries`.
 
 use chrono::Utc;
 use md5;
 use sqlx::{SqlitePool, Row};
 use crate::config::DatabaseConfig;
 use crate::models::{ClientEvent, OpenSession};
+use crate::queries;  // Import du module de requêtes SQL
 
 /// Gestionnaire de base de données
 #[derive(Clone)]
@@ -85,25 +88,12 @@ impl Database {
         hostname: &str,
         timestamp: &str,
     ) -> Result<Option<OpenSession>, sqlx::Error> {
-        let result = sqlx::query_as::<_, OpenSession>(
-            r#"
-            SELECT session_uuid, timestamp FROM events_today 
-            WHERE username = ? AND hostname = ? AND action = 'C'
-            AND DATE(timestamp) = DATE(?)
-            AND NOT EXISTS (
-                SELECT 1 FROM events_today e2 
-                WHERE e2.session_uuid = events_today.session_uuid 
-                AND e2.action = 'D'
-            )
-            ORDER BY timestamp DESC 
-            LIMIT 1
-            "#,
-        )
-        .bind(username)
-        .bind(hostname)
-        .bind(timestamp)
-        .fetch_optional(&self.pool)
-        .await?;
+        let result = sqlx::query_as::<_, OpenSession>(queries::SQL_FIND_OPEN_SESSION_TODAY)
+            .bind(username)
+            .bind(hostname)
+            .bind(timestamp)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(result)
     }
@@ -121,23 +111,11 @@ impl Database {
         username: &str,
         hostname: &str,
     ) -> Result<Option<String>, sqlx::Error> {
-        let result = sqlx::query(
-            r#"
-            SELECT session_uuid FROM events_today 
-            WHERE username = ? AND hostname = ? AND action = 'C'
-            AND NOT EXISTS (
-                SELECT 1 FROM events_today e2 
-                WHERE e2.session_uuid = events_today.session_uuid 
-                AND e2.action = 'D'
-            )
-            ORDER BY timestamp DESC 
-            LIMIT 1
-            "#,
-        )
-        .bind(username)
-        .bind(hostname)
-        .fetch_optional(&self.pool)
-        .await?;
+        let result = sqlx::query(queries::SQL_FIND_LAST_OPEN_SESSION)
+            .bind(username)
+            .bind(hostname)
+            .fetch_optional(&self.pool)
+            .await?;
 
         // Utilisation de try_get au lieu de get pour éviter panic si colonne manquante
         Ok(result.and_then(|row| row.try_get::<String, _>("session_uuid").ok()))
@@ -169,25 +147,18 @@ impl Database {
 
         let server_timestamp = Utc::now().to_rfc3339();
 
-        sqlx::query(
-            r#"
-            INSERT INTO events_today (
-                username, action, timestamp, hostname, source_ip, server_timestamp,
-                os_name, os_version, kernel_version, session_uuid
-            ) VALUES (?, 'D', ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(&event.username)
-        .bind(&disconnect_time)
-        .bind(event.hostname.as_deref())
-        .bind(source_ip)
-        .bind(&server_timestamp)
-        .bind(event.os_info.as_ref().and_then(|os| os.os_name.as_deref()))
-        .bind(event.os_info.as_ref().and_then(|os| os.os_version.as_deref()))
-        .bind(event.os_info.as_ref().and_then(|os| os.kernel_version.as_deref()))
-        .bind(session_uuid)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query(queries::SQL_INSERT_AUTO_DISCONNECT)
+            .bind(&event.username)
+            .bind(&disconnect_time)
+            .bind(event.hostname.as_deref())
+            .bind(source_ip)
+            .bind(&server_timestamp)
+            .bind(event.os_info.as_ref().and_then(|os| os.os_name.as_deref()))
+            .bind(event.os_info.as_ref().and_then(|os| os.os_version.as_deref()))
+            .bind(event.os_info.as_ref().and_then(|os| os.kernel_version.as_deref()))
+            .bind(session_uuid)
+            .execute(&self.pool)
+            .await?;
 
         tracing::info!("Déconnexion automatique insérée pour session: {}", session_uuid);
         Ok(())
@@ -224,27 +195,20 @@ impl Database {
                     .ok()
             });
 
-        let result = sqlx::query(
-            r#"
-            INSERT INTO events_today (
-                username, action, timestamp, hostname, source_ip, server_timestamp,
-                os_name, os_version, kernel_version, hardware_info, session_uuid
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-        )
-        .bind(&event.username)
-        .bind(&event.action)
-        .bind(&event.timestamp)
-        .bind(event.hostname.as_deref())
-        .bind(source_ip)
-        .bind(&server_timestamp)
-        .bind(event.os_info.as_ref().and_then(|os| os.os_name.as_deref()))
-        .bind(event.os_info.as_ref().and_then(|os| os.os_version.as_deref()))
-        .bind(event.os_info.as_ref().and_then(|os| os.kernel_version.as_deref()))
-        .bind(hardware_json.as_deref())
-        .bind(session_uuid)
-        .execute(&self.pool)
-        .await?;
+        let result = sqlx::query(queries::SQL_INSERT_EVENT)
+            .bind(&event.username)
+            .bind(&event.action)
+            .bind(&event.timestamp)
+            .bind(event.hostname.as_deref())
+            .bind(source_ip)
+            .bind(&server_timestamp)
+            .bind(event.os_info.as_ref().and_then(|os| os.os_name.as_deref()))
+            .bind(event.os_info.as_ref().and_then(|os| os.os_version.as_deref()))
+            .bind(event.os_info.as_ref().and_then(|os| os.kernel_version.as_deref()))
+            .bind(hardware_json.as_deref())
+            .bind(session_uuid)
+            .execute(&self.pool)
+            .await?;
 
         Ok(result.last_insert_rowid())
     }

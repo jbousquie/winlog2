@@ -224,14 +224,34 @@ cargo build --release --target x86_64-pc-windows-gnu
 
 ### Configuration client
 
-Modifier `client/src/config.rs` :
-```rust
-pub const DEFAULT_SERVER_URL: &str = "http://127.0.0.1:3000/api/v1/events";
-pub const HTTP_TIMEOUT_SECS: u64 = 30;
-pub const MAX_RETRIES: u32 = 3;
-pub const RETRY_DELAY_MS: u64 = 500;
-pub const USER_AGENT: &str = "Winlog/0.1.0";
+**Configuration via variables d'environnement** (recommandé en production) :
+
+| Variable | Défaut | Description |
+|----------|--------|-------------|
+| `WINLOG_SERVER_URL` | `http://127.0.0.1:3000/api/v1/events` | URL du serveur |
+| `WINLOG_TIMEOUT` | `30` | Timeout HTTP (secondes) |
+| `WINLOG_MAX_RETRIES` | `3` | Nombre de tentatives |
+| `WINLOG_RETRY_DELAY_MS` | `1000` | Délai entre retries (ms) |
+| `WINLOG_USER_AGENT` | `Winlog/0.1.0` | User-Agent HTTP |
+
+**Avantages** :
+- ✅ Pas de recompilation nécessaire
+- ✅ Déploiement centralisé via GPO (Windows) ou `/etc/environment` (Linux)
+- ✅ Un seul binaire pour tous les environnements
+
+**Déploiement GPO Windows** :
+```powershell
+# Computer Configuration > Preferences > Windows Settings > Environment
+Variable: WINLOG_SERVER_URL
+Value: http://192.168.1.100:3000/api/v1/events
 ```
+
+**Déploiement Linux** :
+```bash
+echo 'WINLOG_SERVER_URL=http://192.168.1.100:3000/api/v1/events' | sudo tee -a /etc/environment
+```
+
+Voir `client/README.md` pour la documentation complète.
 
 ## 🌐 Partie Serveur
 
@@ -610,6 +630,7 @@ LIMIT 20;
 
 ## 📖 Documentation détaillée
 
+- **Guide de déploiement** : `/DEPLOYMENT.md` - **Configuration variables d'environnement (GPO/PAM)**
 - **Client Rust** : `/client/README.md` - Compilation, configuration, déploiement Windows/Linux
 - **Serveur Rust** : `/serveur/README.md` - Architecture Axum, API REST, base SQLite partitionnée
 - **Scripts bash** : `/serveur/scripts/README.md` - Gestion base de données (création, rotation, purge)
@@ -637,6 +658,7 @@ winlog2/
 │   │   ├── main.rs          # Point d'entrée Axum
 │   │   ├── config.rs        # Chargement config.toml
 │   │   ├── models.rs        # Structures de données
+│   │   ├── queries.rs       # Requêtes SQL centralisées
 │   │   ├── database.rs      # Logique SQLx + sessions
 │   │   └── handlers.rs      # Handlers HTTP
 │   ├── scripts/             # Scripts bash gestion DB
@@ -664,9 +686,64 @@ winlog2/
 
 ### Ajout de fonctionnalités
 - **Client** : Modifier `client/src/lib.rs` (modules partagés)
-- **Serveur** : Modifier `serveur/src/*.rs` (handlers, database, models)
+- **Serveur** : Modifier `serveur/src/*.rs` (handlers, database, models, queries)
 - **Base de données** : Modifier `serveur/scripts/create_base.sh` (schéma SQLite)
 - **API** : Ajouter endpoints dans `serveur/src/handlers.rs` + routes dans `main.rs`
+- **Requêtes SQL** : Ajouter/modifier dans `serveur/src/queries.rs` (module dédié)
+
+### Organisation du code SQL (`serveur/src/queries.rs`)
+
+**Toutes les requêtes SQL sont centralisées dans un module dédié** pour améliorer la maintenabilité et la séparation des responsabilités.
+
+**Fichier** : `serveur/src/queries.rs`
+
+**Constantes SQL opérationnelles** (utilisées par `database.rs`) :
+- `SQL_FIND_OPEN_SESSION_TODAY` - Recherche session ouverte aujourd'hui pour éviter les doublons
+- `SQL_FIND_LAST_OPEN_SESSION` - Trouve la dernière session ouverte pour associer une déconnexion
+- `SQL_INSERT_AUTO_DISCONNECT` - Insère une déconnexion automatique pour fermer session orpheline
+- `SQL_INSERT_EVENT` - Insère tout événement (connexion/déconnexion/inventaire)
+
+**Constantes SQL d'analyse** (documentation/usage futur) :
+- `SQL_LIST_OPEN_SESSIONS` - Liste toutes les sessions actuellement ouvertes
+- `SQL_SESSION_DURATIONS` - Calcule la durée des sessions terminées
+- `SQL_TOP_USERS_BY_SESSION_COUNT` - Classement des utilisateurs les plus actifs
+
+**Avantages de cette organisation** :
+- ✅ **Séparation des responsabilités** : SQL isolé de la logique métier
+- ✅ **Lisibilité** : Requêtes documentées avec objectif, logique et paramètres
+- ✅ **Maintenabilité** : Modification centralisée dans un seul fichier
+- ✅ **Évolutivité** : Ajout facile de nouvelles requêtes
+- ✅ **Réutilisabilité** : Constantes publiques utilisables dans tout le code
+- ✅ **Testabilité** : Possibilité de tester les requêtes isolément
+
+**Structure d'une constante SQL** :
+```rust
+/// [Documentation détaillée de la requête]
+/// **Objectif** : Pourquoi cette requête existe
+/// **Logique** : Comment elle fonctionne (filtres, sous-requêtes, etc.)
+/// **Paramètres** : ?1 = username (TEXT), ?2 = hostname (TEXT), ...
+/// **Colonnes retournées** : session_uuid, timestamp
+/// **Utilisé dans** : database.rs::find_open_session_today()
+pub const SQL_FIND_OPEN_SESSION_TODAY: &str = r#"
+    SELECT session_uuid, timestamp 
+    FROM events_today 
+    WHERE username = ? AND hostname = ?
+    ...
+"#;
+```
+
+**Usage dans le code** :
+```rust
+// Dans database.rs
+use crate::queries;
+
+sqlx::query(queries::SQL_FIND_OPEN_SESSION_TODAY)
+    .bind(username)
+    .bind(hostname)
+    .execute(&self.pool)
+    .await?
+```
+
 
 ## 🔐 Sécurité
 

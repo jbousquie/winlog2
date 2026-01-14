@@ -137,18 +137,134 @@ La crate `sysinfo` adapte automatiquement la collecte selon l'OS :
 
 ## 📝 Configuration
 
-Modifier `src/config.rs` pour ajuster :
-- `SERVER_URL` : Adresse du serveur Winlog
-- `HTTP_TIMEOUT_SECS` : Timeout des requêtes (défaut : 30s)
-- `MAX_RETRIES` : Nombre de tentatives (défaut : 3)
-- `RETRY_DELAY_MS` : Délai entre tentatives (défaut : 500ms)
-- `USER_AGENT` : User-Agent des requêtes
+### Configuration par variables d'environnement (Recommandé en production)
 
-**Recompiler après modification** : `cargo build --release`
+Le client supporte la configuration via **variables d'environnement**, permettant de changer la configuration sans recompiler les binaires.
+
+#### Variables supportées
+
+| Variable | Type | Défaut | Description |
+|----------|------|--------|-------------|
+| `WINLOG_SERVER_URL` | String | `http://127.0.0.1:3000/api/v1/events` | URL du serveur de monitoring |
+| `WINLOG_TIMEOUT` | u64 | `30` | Timeout HTTP en secondes |
+| `WINLOG_MAX_RETRIES` | u32 | `3` | Nombre maximum de tentatives |
+| `WINLOG_RETRY_DELAY_MS` | u64 | `1000` | Délai entre retries (millisecondes) |
+| `WINLOG_USER_AGENT` | String | `Winlog/0.1.0` | User-Agent HTTP |
+
+#### Hiérarchie de configuration
+
+1. **Variables d'environnement** (priorité haute)
+2. **Constantes par défaut** dans `src/config.rs` (fallback)
+
+#### Déploiement Windows (GPO)
+
+**Option 1 - PowerShell (test local)** :
+```powershell
+# Configuration système (persistante)
+[System.Environment]::SetEnvironmentVariable(
+    "WINLOG_SERVER_URL", 
+    "http://192.168.1.100:3000/api/v1/events", 
+    "Machine"
+)
+
+# Configuration session (temporaire)
+$env:WINLOG_SERVER_URL = "http://192.168.1.100:3000/api/v1/events"
+```
+
+**Option 2 - GPO (déploiement massif)** :
+1. Ouvrir **Group Policy Management Console**
+2. Computer Configuration > Preferences > Windows Settings > Environment
+3. Créer une nouvelle variable :
+   - **Variable name** : `WINLOG_SERVER_URL`
+   - **Variable value** : `http://192.168.1.100:3000/api/v1/events`
+   - **Action** : Create or Update
+   - **User Variable** : Non (cocher "Computer Variable")
+4. Appliquer la GPO sur les OUs concernées
+
+**Option 3 - Script de déploiement** :
+```powershell
+# deploy-winlog-config.ps1
+[System.Environment]::SetEnvironmentVariable("WINLOG_SERVER_URL", "http://192.168.1.100:3000/api/v1/events", "Machine")
+[System.Environment]::SetEnvironmentVariable("WINLOG_TIMEOUT", "60", "Machine")
+[System.Environment]::SetEnvironmentVariable("WINLOG_MAX_RETRIES", "5", "Machine")
+
+Write-Host "Configuration Winlog déployée avec succès"
+Write-Host "Redémarrer la session pour appliquer les changements"
+```
+
+#### Déploiement Linux
+
+**Option 1 - /etc/environment (recommandé)** :
+```bash
+# Ajouter au fichier /etc/environment (applicable à tous les utilisateurs)
+echo 'WINLOG_SERVER_URL=http://192.168.1.100:3000/api/v1/events' | sudo tee -a /etc/environment
+echo 'WINLOG_TIMEOUT=30' | sudo tee -a /etc/environment
+
+# Recharger l'environnement
+source /etc/environment
+```
+
+**Option 2 - /etc/profile.d (alternative)** :
+```bash
+# Créer un script de configuration
+sudo cat > /etc/profile.d/winlog.sh <<EOF
+export WINLOG_SERVER_URL=http://192.168.1.100:3000/api/v1/events
+export WINLOG_TIMEOUT=30
+export WINLOG_MAX_RETRIES=3
+EOF
+
+sudo chmod +x /etc/profile.d/winlog.sh
+```
+
+**Option 3 - Systemd service (si exécuté via service)** :
+```ini
+# /etc/systemd/system/winlog.service
+[Service]
+Environment="WINLOG_SERVER_URL=http://192.168.1.100:3000/api/v1/events"
+Environment="WINLOG_TIMEOUT=30"
+ExecStart=/usr/local/bin/logon
+```
+
+#### Test de configuration
+
+```bash
+# Linux
+export WINLOG_SERVER_URL=http://192.168.1.100:3000/api/v1/events
+export WINLOG_MAX_RETRIES=2
+./target/release/matos
+
+# Windows PowerShell
+$env:WINLOG_SERVER_URL = "http://192.168.1.100:3000/api/v1/events"
+$env:WINLOG_MAX_RETRIES = "2"
+.\target\release\matos.exe
+```
+
+Vous devriez voir dans la sortie :
+```
+Tentative 1/2 d'envoi vers http://192.168.1.100:3000/api/v1/events
+```
+
+### Configuration par défaut (développement)
+
+Pour le développement local, les valeurs par défaut sont utilisées si aucune variable d'environnement n'est définie :
+- `WINLOG_SERVER_URL` : `http://127.0.0.1:3000/api/v1/events`
+- `WINLOG_TIMEOUT` : `30` secondes
+- `WINLOG_MAX_RETRIES` : `3` tentatives
+
+Ces valeurs sont définies dans `src/config.rs` et peuvent être consultées avec :
+```bash
+# Voir le code source de configuration
+cat src/config.rs
+```
+
+**Note** : Aucune recompilation n'est nécessaire pour changer la configuration en production grâce aux variables d'environnement.
 
 ## 🚀 Déploiement
 
 ### Windows (GPO)
+
+**Pré-requis** : Avoir configuré la variable d'environnement `WINLOG_SERVER_URL` via GPO (voir section Configuration ci-dessus)
+
 1. Copier `logon.exe` et `logout.exe` vers `\\DOMAIN\SYSVOL\scripts\`
 2. Configurer GPO :
    - **Ouverture** : `User Configuration > Scripts > Logon > Add logon.exe`
@@ -156,6 +272,9 @@ Modifier `src/config.rs` pour ajuster :
 3. Déployer `matos.exe` via tâche planifiée (quotidien)
 
 ### Linux (PAM)
+
+**Pré-requis** : Avoir configuré la variable d'environnement `WINLOG_SERVER_URL` dans `/etc/environment` (voir section Configuration ci-dessus)
+
 1. Copier binaires vers `/usr/local/bin/`
 2. Créer scripts wrappers :
    ```bash

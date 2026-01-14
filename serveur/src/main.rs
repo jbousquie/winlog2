@@ -20,6 +20,7 @@ mod config;
 mod models;
 mod database;
 mod handlers;
+mod queries;  // Module contenant toutes les requêtes SQL
 
 use axum::{
     routing::{get, post},

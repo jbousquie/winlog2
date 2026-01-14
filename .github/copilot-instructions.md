@@ -69,10 +69,11 @@ Le repository est organisé en **2 parties distinctes** :
 ### 1. Partie Client (`/client/`)
 
 #### Configuration centralisée (`client/src/config.rs`)
-- **Constantes serveur** : URL par défaut, timeout, nombre de retry
-- **Paramètres HTTP** : User-Agent personnalisé, délais entre tentatives
-- **Valeurs système** : Seuils et limites configurables
-- **Accès uniforme** : Utilisable depuis tous les modules via `crate::config`
+- **Configuration hiérarchique** : Variables d'environnement (priorité) → Constantes par défaut (fallback)
+- **Variables supportées** : `WINLOG_SERVER_URL`, `WINLOG_TIMEOUT`, `WINLOG_MAX_RETRIES`, `WINLOG_RETRY_DELAY_MS`, `WINLOG_USER_AGENT`
+- **Avantages** : Pas de recompilation, déploiement centralisé via GPO/PAM, un binaire pour tous les environnements
+- **Fonctions d'accès** : `server_url()`, `timeout()`, `max_retries()`, `retry_delay_ms()`, `user_agent()`
+- **Déploiement production** : GPO Windows (Environment Variables) ou `/etc/environment` Linux
 
 #### Librairie partagée (`client/src/lib.rs`)
 - **Module `http_client`** : Client HTTP synchrone basé sur `minreq` avec retry et timeout
@@ -98,7 +99,8 @@ Le repository est organisé en **2 parties distinctes** :
 - **`main.rs`** : Point d'entrée Axum, initialisation serveur et routes
 - **`config.rs`** : Chargement et validation config.toml
 - **`models.rs`** : Structures ClientEvent, Response, DbEvent avec serde
-- **`database.rs`** : Pool SQLx, requêtes SQL, logique sessions intelligente
+- **`queries.rs`** : Constantes SQL centralisées (toutes les requêtes du serveur)
+- **`database.rs`** : Pool SQLx, logique sessions intelligente (utilise queries.rs)
 - **`handlers.rs`** : Handlers HTTP (collect_event, health_check, extract_ip)
 
 #### Scripts bash de gestion DB (`serveur/scripts/`)
@@ -246,7 +248,8 @@ winlog2/
 │   │   ├── main.rs            # Point d'entrée Axum + routes
 │   │   ├── config.rs          # Chargement config.toml
 │   │   ├── models.rs          # Structures ClientEvent, Response
-│   │   ├── database.rs        # Pool SQLx, requêtes, sessions
+│   │   ├── queries.rs         # Constantes SQL centralisées
+│   │   ├── database.rs        # Pool SQLx, logique sessions (utilise queries.rs)
 │   │   └── handlers.rs        # Handlers HTTP (collect_event, health)
 │   ├── scripts/               # Scripts bash gestion DB
 │   │   ├── create_base.sh     # Création base partitionnée
@@ -376,6 +379,16 @@ curl -X POST http://127.0.0.1:3000/api/v1/events \
 - **Panic-Safety** : Code runtime doit être 100% panic-proof (voir section Role ci-dessus)
 
 ### Code SQL (Base SQLite)
+- **Organisation** : Toutes les requêtes SQL doivent être dans le fichier dédié `serveur/src/queries.rs`
+- **Nomenclature** : Préfixer les constantes par `SQL_` suivi d'un verbe d'action (ex: `SQL_FIND_OPEN_SESSION_TODAY`, `SQL_INSERT_EVENT`)
+- **Visibilité** : Utiliser `pub const` pour rendre les constantes accessibles depuis d'autres modules
+- **Documentation** : Chaque constante SQL doit avoir un commentaire détaillé expliquant :
+  - **Objectif** : Pourquoi cette requête existe
+  - **Logique** : Comment elle fonctionne (filtres, jointures, sous-requêtes)
+  - **Paramètres** : Liste ordonnée des paramètres `?` avec leur type et signification
+  - **Colonnes retournées** : Liste des colonnes du SELECT (si applicable)
+  - **Utilisé dans** : Référence au module/fonction qui utilise cette requête
+- **Séparation** : Ne jamais mettre de SQL inline dans `database.rs` ou `handlers.rs`, toujours passer par `queries.rs`
 - **Indexes** : Toujours indexer colonnes dans WHERE/JOIN
 - **Transactions** : Utiliser transactions pour cohérence ACID
 - **PRAGMA** : Configurer WAL mode + cache_size pour performances
