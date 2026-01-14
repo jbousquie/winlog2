@@ -8,7 +8,6 @@
 # /client/Cargo.lock - gardé pour reproductibilité
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -34,4 +33,4 @@ Thumbs.db
 /tmp/
 *.tmp
 
-target/
+/target/

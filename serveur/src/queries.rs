@@ -188,25 +188,29 @@ pub const SQL_INSERT_EVENT: &str = r#"
 /// **Logique** :
 /// - Recherche toutes les connexions (action='C') dans events_today
 /// - Exclut celles qui ont une déconnexion (action='D') associée via session_uuid
-/// - Trie par timestamp de connexion décroissant (plus récentes en premier)
+/// - Trie par hostname puis timestamp (plus anciennes en premier par machine)
 /// 
 /// **Paramètres** : Aucun
 /// 
 /// **Colonnes retournées** :
 /// - `username` : Nom d'utilisateur
 /// - `hostname` : Nom de la machine
-/// - `timestamp` : Date/heure de connexion
+/// - `connected_at` : Date/heure de connexion (alias de timestamp)
 /// - `session_uuid` : Identifiant de session
 /// - `source_ip` : Adresse IP source
+/// - `os_name` : Nom du système d'exploitation
+/// - `os_version` : Version du système d'exploitation
 /// 
-/// **Usage** : Requête manuelle ou future API de monitoring
+/// **Utilisé dans** : `handlers.rs::get_current_sessions()` (endpoint GET /api/v1/sessions/current)
 pub const SQL_LIST_OPEN_SESSIONS: &str = r#"
     SELECT 
         username,
         hostname,
         timestamp AS connected_at,
         session_uuid,
-        source_ip
+        source_ip,
+        os_name,
+        os_version
     FROM events_today
     WHERE action = 'C'
       AND NOT EXISTS (
@@ -214,7 +218,7 @@ pub const SQL_LIST_OPEN_SESSIONS: &str = r#"
           WHERE e2.session_uuid = events_today.session_uuid
             AND e2.action = 'D'
       )
-    ORDER BY timestamp DESC
+    ORDER BY hostname ASC, timestamp ASC
 "#;
 
 #[allow(dead_code)]  // Usage futur ou requêtes manuelles SQL

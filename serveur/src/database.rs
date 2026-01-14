@@ -9,7 +9,7 @@ use chrono::Utc;
 use md5;
 use sqlx::{SqlitePool, Row};
 use crate::config::DatabaseConfig;
-use crate::models::{ClientEvent, OpenSession};
+use crate::models::{ClientEvent, OpenSession, CurrentSession};
 use crate::queries;  // Import du module de requêtes SQL
 
 /// Gestionnaire de base de données
@@ -162,6 +162,19 @@ impl Database {
 
         tracing::info!("Déconnexion automatique insérée pour session: {}", session_uuid);
         Ok(())
+    }
+
+    /// Récupère les sessions actuellement ouvertes
+    ///
+    /// Retourne toutes les sessions avec action='C' qui n'ont pas de action='D' correspondant,
+    /// triées par hostname puis timestamp.
+    ///
+    /// # Retourne
+    /// Liste des sessions ouvertes avec leurs détails (username, hostname, timestamp, etc.)
+    pub async fn get_current_sessions(&self) -> Result<Vec<CurrentSession>, sqlx::Error> {
+        sqlx::query_as::<_, CurrentSession>(queries::SQL_LIST_OPEN_SESSIONS)
+            .fetch_all(&self.pool)
+            .await
     }
 
     /// Insère un nouvel événement dans events_today

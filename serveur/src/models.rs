@@ -63,6 +63,31 @@ pub struct OpenSession {
     pub timestamp: String,
 }
 
+/// Session en cours pour l'API GET /api/v1/sessions/current
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct CurrentSession {
+    /// Nom d'utilisateur
+    pub username: String,
+    
+    /// Nom de la machine (nullable en base)
+    pub hostname: Option<String>,
+    
+    /// Date/heure de connexion (ISO 8601)
+    pub connected_at: String,
+    
+    /// Identifiant unique de session
+    pub session_uuid: String,
+    
+    /// Adresse IP source (nullable en base)
+    pub source_ip: Option<String>,
+    
+    /// Nom du système d'exploitation (nullable en base)
+    pub os_name: Option<String>,
+    
+    /// Version du système d'exploitation (nullable en base)
+    pub os_version: Option<String>,
+}
+
 /// Réponse de succès retournée au client
 #[derive(Debug, Serialize)]
 pub struct SuccessResponse {

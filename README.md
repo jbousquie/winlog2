@@ -259,7 +259,7 @@ Voir `client/README.md` pour la documentation complète.
 
 **Framework web** : Axum 0.7 (Tokio team)
 - API REST asynchrone haute performance
-- Endpoints : `POST /api/v1/events`, `GET /health`
+- Endpoints : `POST /api/v1/events`, `GET /api/v1/sessions/current`, `GET /health`
 - Validation stricte : User-Agent, JSON schema, actions
 - Support proxies : X-Forwarded-For, CF-Connecting-IP
 - Logs structurés avec tracing
@@ -549,6 +549,13 @@ cargo build --release
 
 ### Test serveur
 ```bash
+# Health check
+curl http://127.0.0.1:3000/health
+
+# Sessions ouvertes
+curl http://127.0.0.1:3000/api/v1/sessions/current
+
+# Envoyer un événement
 curl -X POST http://127.0.0.1:3000/api/v1/events \
   -H "Content-Type: application/json" \
   -H "User-Agent: Winlog/0.1.0" \
@@ -571,6 +578,13 @@ sqlite3 serveur/data/winlog.db \
 ## 🔍 Requêtes SQL d'analyse
 
 ### Sessions actuellement ouvertes
+
+**Via API REST** (recommandé) :
+```bash
+curl http://127.0.0.1:3000/api/v1/sessions/current
+```
+
+**Via SQL direct** :
 ```sql
 SELECT username, hostname, session_uuid, timestamp, source_ip
 FROM events_today 

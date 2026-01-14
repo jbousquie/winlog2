@@ -299,6 +299,90 @@ Host: 127.0.0.1:3000
 
 Utilisé par les outils de monitoring (Nagios, Prometheus, Docker healthcheck...)
 
+### GET /api/v1/sessions/current - Sessions ouvertes
+
+**Endpoint de consultation** : Retourne la liste des sessions actuellement ouvertes (connexions sans déconnexion correspondante)
+
+#### Requête
+
+```http
+GET /api/v1/sessions/current HTTP/1.1
+Host: 127.0.0.1:3000
+```
+
+#### Réponse (200 OK)
+
+```json
+[
+  {
+    "username": "alice",
+    "hostname": "PC-001",
+    "connected_at": "2026-01-14T15:00:00Z",
+    "session_uuid": "alice@PC-001@b05e17",
+    "source_ip": "192.168.1.50",
+    "os_name": "Windows",
+    "os_version": "10.0.19045"
+  },
+  {
+    "username": "bob",
+    "hostname": "PC-002",
+    "connected_at": "2026-01-14T15:05:00Z",
+    "session_uuid": "bob@PC-002@8124cc",
+    "source_ip": "192.168.1.51",
+    "os_name": "Ubuntu",
+    "os_version": "22.04"
+  }
+]
+```
+
+#### Champs de réponse
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `username` | String | Nom d'utilisateur |
+| `hostname` | String (nullable) | Nom de la machine |
+| `connected_at` | String | Timestamp de connexion (ISO 8601 UTC) |
+| `session_uuid` | String | Identifiant unique de session |
+| `source_ip` | String (nullable) | Adresse IP source |
+| `os_name` | String (nullable) | Nom du système d'exploitation |
+| `os_version` | String (nullable) | Version du système d'exploitation |
+
+#### Logique de filtrage
+
+Une session est considérée "ouverte" si :
+- ✅ Il existe un événement avec `action='C'` (connexion)
+- ✅ Il n'existe **pas** d'événement avec `action='D'` (déconnexion) pour le même `session_uuid`
+- ✅ Les événements sont dans la table `events_today` (journée en cours)
+
+#### Tri des résultats
+
+Les sessions sont triées par :
+1. `hostname` (ordre alphabétique croissant)
+2. `connected_at` (timestamp croissant)
+
+#### Cas d'usage
+
+- **Monitoring temps réel** : Dashboard "Qui est connecté maintenant ?"
+- **Alertes** : Détection de sessions anormales ou trop longues
+- **Reporting** : Statistiques d'utilisation en cours
+- **Intégration** : API pour outils externes (Grafana, scripts, etc.)
+
+#### Exemple d'utilisation
+
+```bash
+# Lister toutes les sessions ouvertes
+curl -s http://127.0.0.1:3000/api/v1/sessions/current | jq .
+
+# Compter les sessions ouvertes
+curl -s http://127.0.0.1:3000/api/v1/sessions/current | jq 'length'
+
+# Filtrer par utilisateur
+curl -s http://127.0.0.1:3000/api/v1/sessions/current | jq '.[] | select(.username=="alice")'
+
+# Extraire uniquement les usernames
+curl -s http://127.0.0.1:3000/api/v1/sessions/current | jq -r '.[].username' | sort -u
+```
+
 ## 🗄️ Base de données SQLite
 
 ### Structure partitionnée

@@ -11,6 +11,7 @@
 //!
 //! ## Endpoints
 //! - `POST /api/v1/events` - Collecte d'événements (logique principale)
+//! - `GET /api/v1/sessions/current` - Liste des sessions actuellement ouvertes
 //! - `GET /health` - Health check
 //!
 //! ## Configuration
@@ -33,7 +34,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::{
     config::Config,
     database::Database,
-    handlers::{AppState, collect_event, health_check},
+    handlers::{AppState, collect_event, health_check, get_current_sessions},
 };
 
 #[tokio::main]
@@ -75,6 +76,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Route principale : collecte d'événements
         .route("/api/v1/events", post(collect_event))
         
+        // Liste des sessions ouvertes
+        .route("/api/v1/sessions/current", get(get_current_sessions))
+        
         // Health check
         .route("/health", get(health_check))
         
@@ -88,8 +92,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr: SocketAddr = config.bind_address().parse()?;
     
     tracing::info!("✓ Serveur Winlog démarré sur http://{}", addr);
-    tracing::info!("  POST /api/v1/events - Collecte d'événements");
-    tracing::info!("  GET  /health        - Health check");
+    tracing::info!("  POST /api/v1/events            - Collecte d'événements");
+    tracing::info!("  GET  /api/v1/sessions/current  - Sessions ouvertes");
+    tracing::info!("  GET  /health                   - Health check");
     tracing::info!("");
     tracing::info!("Appuyez sur Ctrl+C pour arrêter le serveur");
 

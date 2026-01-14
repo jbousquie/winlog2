@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use crate::{
     config::Config,
     database::Database,
-    models::{ClientEvent, SuccessResponse, ErrorResponse},
+    models::{ClientEvent, SuccessResponse, ErrorResponse, CurrentSession},
 };
 
 /// État partagé de l'application
@@ -274,4 +274,34 @@ pub async fn health_check() -> impl IntoResponse {
         "service": "winlog-server",
         "version": env!("CARGO_PKG_VERSION")
     }))
+}
+
+/// Liste les sessions actuellement ouvertes (GET /api/v1/sessions/current)
+///
+/// Retourne un tableau JSON de toutes les sessions qui ont une action='C'
+/// sans action='D' correspondante, triées par hostname puis timestamp.
+///
+/// # Réponse
+/// - 200 OK : JSON array de CurrentSession
+/// - 500 Internal Server Error : Erreur base de données
+pub async fn get_current_sessions(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<CurrentSession>>, (StatusCode, Json<ErrorResponse>)> {
+    
+    tracing::debug!("Fetching current open sessions");
+    
+    let sessions = state.db
+        .get_current_sessions()
+        .await
+        .map_err(|e| {
+            tracing::error!("Database error while fetching current sessions: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new("Database error")),
+            )
+        })?;
+    
+    tracing::info!("Found {} open sessions", sessions.len());
+    
+    Ok(Json(sessions))
 }

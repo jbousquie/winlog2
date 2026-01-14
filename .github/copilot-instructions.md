@@ -90,7 +90,7 @@ Le repository est organisé en **2 parties distinctes** :
 
 #### Implémentation Rust (Axum + SQLx + SQLite)
 - **Framework web** : Axum 0.7 (Tokio team, simplicité + stabilité)
-- **API REST** : POST `/api/v1/events` (collecte), GET `/health` (monitoring)
+- **API REST** : POST `/api/v1/events` (collecte), GET `/api/v1/sessions/current` (consultation), GET `/health` (monitoring)
 - **Base de données** : SQLite en mode WAL avec structure partitionnée
 - **ORM** : SQLx 0.8 avec compile-time SQL checks
 - **Configuration** : `config.toml` pour paramètres runtime
@@ -98,10 +98,10 @@ Le repository est organisé en **2 parties distinctes** :
 #### Structure du code serveur (`serveur/src/`)
 - **`main.rs`** : Point d'entrée Axum, initialisation serveur et routes
 - **`config.rs`** : Chargement et validation config.toml
-- **`models.rs`** : Structures ClientEvent, Response, DbEvent avec serde
+- **`models.rs`** : Structures ClientEvent, Response, DbEvent, CurrentSession avec serde
 - **`queries.rs`** : Constantes SQL centralisées (toutes les requêtes du serveur)
 - **`database.rs`** : Pool SQLx, logique sessions intelligente (utilise queries.rs)
-- **`handlers.rs`** : Handlers HTTP (collect_event, health_check, extract_ip)
+- **`handlers.rs`** : Handlers HTTP (collect_event, get_current_sessions, health_check, extract_ip)
 
 #### Scripts bash de gestion DB (`serveur/scripts/`)
 - **`create_base.sh`** : Création base partitionnée (events_today + events_history)
