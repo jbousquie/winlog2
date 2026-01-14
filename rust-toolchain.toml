@@ -1,0 +1,5 @@
+[toolchain]
+channel = "stable-x86_64-pc-windows-gnu"
+targets = ["x86_64-pc-windows-gnu", "x86_64-unknown-linux-gnu"]
+# Force GNU toolchain pour compatibilité cross-platform Windows/Linux
+# Les outils MinGW (dlltool, gcc, etc.) doivent être dans le PATH sur Windows

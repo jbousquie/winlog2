@@ -43,6 +43,87 @@ winlog2/
     └── copilot-instructions.md  # Instructions développement
 ```
 
+## ⚙️ Configuration cross-platform
+
+### Prérequis de compilation
+
+#### Windows
+Pour compiler sur Windows avec la toolchain GNU (recommandé pour compatibilité cross-platform) :
+
+1. **Installer MSYS2** (si pas déjà présent) :
+   ```bash
+   winget install MSYS2.MSYS2
+   ```
+
+2. **Vérifier les outils MinGW** :
+   ```bash
+   C:\msys64\mingw64\bin\dlltool.exe --version
+   C:\msys64\mingw64\bin\gcc.exe --version
+   ```
+
+3. **Configuration rustup pour le projet** (automatique dans ce repo) :
+   ```bash
+   # Déjà configuré via rustup override
+   rustup override set stable-x86_64-pc-windows-gnu
+   ```
+
+4. **PATH permanent** (si nécessaire) :
+   ```powershell
+   [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\msys64\mingw64\bin", "User")
+   ```
+
+5. **Sessions SSH** (spécifique VM Windows) :
+   ```powershell
+   # Pour les sessions SSH, le PATH utilisateur peut ne pas être chargé
+   $env:Path = $env:Path + ";C:\msys64\mingw64\bin"
+   
+   # Ou utiliser le script d'initialisation :
+   . ./ssh-init.ps1
+   ```
+
+#### Linux
+Aucune configuration particulière, la toolchain GNU est native :
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install build-essential
+
+# RHEL/CentOS/Fedora
+sudo dnf install gcc gcc-c++ make
+
+# Arch Linux
+sudo pacman -S base-devel
+```
+
+### Compilation cross-platform
+
+#### Depuis Windows
+```bash
+# Client Windows (natif)
+cd client
+cargo build --release
+# Binaires : target/release/{logon,logout,matos}.exe
+
+# Cross-compilation vers Linux (optionnel)
+rustup target add x86_64-unknown-linux-gnu
+cargo build --release --target x86_64-unknown-linux-gnu
+```
+
+#### Depuis Linux
+```bash
+# Client Linux (natif)
+cd client
+cargo build --release
+# Binaires : target/release/{logon,logout,matos}
+
+# Cross-compilation vers Windows
+rustup target add x86_64-pc-windows-gnu
+cargo build --release --target x86_64-pc-windows-gnu
+# Binaires : target/x86_64-pc-windows-gnu/release/{logon,logout,matos}.exe
+```
+
+**Note importante :** Ce projet utilise `rustup override` pour définir automatiquement la toolchain `stable-x86_64-pc-windows-gnu` dans chaque sous-dossier, garantissant la cohérence cross-platform sans configuration manuelle.
+
 ## 🖥️ Partie Client (Rust)
 
 ### 3 Binaires multi-plateformes
