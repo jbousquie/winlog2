@@ -5,7 +5,7 @@
 
 use serde::Deserialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Configuration complète du serveur
 #[derive(Debug, Clone, Deserialize)]
@@ -29,7 +29,7 @@ pub struct ServerConfig {
 /// Configuration de la base de données SQLite
 #[derive(Debug, Clone, Deserialize)]
 pub struct DatabaseConfig {
-    /// Chemin vers le fichier .db
+    /// Chemin vers le fichier .db (sera converti en PathBuf)
     pub path: String,
     /// Mode journal (WAL recommandé)
     pub pragma_journal_mode: String,
@@ -39,6 +39,27 @@ pub struct DatabaseConfig {
     pub pragma_busy_timeout: u32,
     /// Taille du cache (nombre de pages)
     pub pragma_cache_size: i32,
+}
+
+impl DatabaseConfig {
+    /// Retourne le chemin de la base en PathBuf (multi-plateforme)
+    ///
+    /// Convertit le chemin TOML en PathBuf natif du système d'exploitation.
+    /// Gère automatiquement les séparateurs Windows (\) et Unix (/).
+    pub fn path_buf(&self) -> PathBuf {
+        PathBuf::from(&self.path)
+    }
+
+    /// Retourne l'URL SQLite complète pour SQLx
+    ///
+    /// Format : "sqlite://chemin/vers/base.db" ou "sqlite:chemin/vers/base.db"
+    /// SQLx accepte les deux syntaxes. On utilise la forme simple sans "//".
+    pub fn sqlite_url(&self) -> String {
+        let path_buf = self.path_buf();
+        // SQLx accepte les chemins relatifs et absolus
+        // PathBuf gère automatiquement les séparateurs Windows/Linux
+        format!("sqlite:{}", path_buf.display())
+    }
 }
 
 /// Configuration de sécurité

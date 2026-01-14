@@ -316,25 +316,47 @@ sudo crontab -e
 
 ### Serveur - Rust (Axum + SQLx)
 
+**Portabilité** : Le serveur supporte nativement Windows et Linux grâce à la gestion automatique des chemins via `std::path::PathBuf`.
+
 1. **Compiler le serveur** :
 ```bash
+# Linux/macOS
 cd serveur
 cargo build --release
-# Binaire généré : target/release/winlog-server (3.1 MB)
+# Binaire : target/release/winlog-server (3.1 MB)
+
+# Windows (natif)
+cd serveur
+cargo build --release
+# Binaire : target\release\winlog-server.exe
+
+# Cross-compilation Linux → Windows
+rustup target add x86_64-pc-windows-gnu
+cargo build --release --target x86_64-pc-windows-gnu
+# Binaire : target/x86_64-pc-windows-gnu/release/winlog-server.exe
 ```
 
 2. **Créer la base de données** :
 ```bash
+# Linux/macOS/WSL uniquement (scripts bash)
 cd serveur/scripts
 ./create_base.sh
 # Crée serveur/data/winlog.db avec structure partitionnée
+
+# Windows : Créer manuellement ou utiliser WSL
+# Ou copier une base existante depuis Linux
 ```
 
 3. **Configurer le serveur** :
 ```bash
 cd serveur
-nano config.toml
-# Ajuster host, port, database path selon environnement
+nano config.toml   # Linux/macOS
+notepad config.toml  # Windows
+
+# Important : Toujours utiliser '/' dans config.toml, même sous Windows
+# Rust convertit automatiquement en '\' si nécessaire
+[database]
+path = "data/winlog.db"  # ✅ Portable Windows/Linux
 ```
 
 4. **Démarrer le serveur** :

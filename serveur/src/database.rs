@@ -18,13 +18,17 @@ pub struct Database {
 impl Database {
     /// Initialise la connexion à la base SQLite avec configuration des PRAGMA
     ///
+    /// Utilise l'URL SQLite générée par `DatabaseConfig::sqlite_url()` qui gère
+    /// automatiquement les séparateurs de chemin Windows (\) et Unix (/).
+    ///
     /// # Arguments
     /// * `config` - Configuration de la base de données
     ///
     /// # Erreurs
     /// Retourne une erreur si la connexion échoue
     pub async fn new(config: &DatabaseConfig) -> Result<Self, sqlx::Error> {
-        let pool = SqlitePool::connect(&config.path).await?;
+        let sqlite_url = config.sqlite_url();
+        let pool = SqlitePool::connect(&sqlite_url).await?;
 
         // Configuration des PRAGMA SQLite
         let pragmas = vec![

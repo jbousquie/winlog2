@@ -111,6 +111,12 @@ port = 3000             # Port d'écoute
 
 [database]
 path = "data/winlog.db"  # Chemin base SQLite (relatif au répertoire serveur)
+                         # ✅ Multi-plateforme : '/' converti en '\' sous Windows
+                         # Exemples valides :
+                         #   - "data/winlog.db" (relatif, recommandé)
+                         #   - "./data/winlog.db" (relatif explicite)
+                         #   - "C:/Users/Admin/winlog.db" (absolu Windows)
+                         #   - "/var/www/winlog.db" (absolu Linux)
 pragma_journal_mode = "WAL"        # Write-Ahead Logging (performances)
 pragma_synchronous = "NORMAL"      # Balance sécurité/vitesse
 pragma_busy_timeout = 30000        # Timeout 30s pour verrous
@@ -145,6 +151,70 @@ sudo systemctl start winlog-server
 ```
 
 Le serveur écoute par défaut sur `http://127.0.0.1:3000`
+
+## 🪟 Portabilité Windows/Linux
+
+### Gestion automatique des chemins
+
+Le serveur utilise `std::path::PathBuf` pour garantir la **portabilité complète** des chemins de fichiers :
+
+**Configuration TOML** (identique sous Windows et Linux) :
+```toml
+[database]
+path = "data/winlog.db"  # ✅ Fonctionne partout
+```
+
+**Sous Linux** :
+- PathBuf conserve : `data/winlog.db`
+- SQLx reçoit : `sqlite:data/winlog.db`
+- Séparateur natif : `/`
+
+**Sous Windows** :
+- PathBuf convertit automatiquement : `data\winlog.db`
+- SQLx reçoit : `sqlite:data\winlog.db`
+- Séparateur natif : `\`
+
+**Chemins absolus supportés** :
+```toml
+# Windows
+path = "C:/Users/Admin/winlog/data/winlog.db"  # ✅ Converti en C:\Users\...
+
+# Linux
+path = "/var/www/winlog/data/winlog.db"        # ✅ Utilisé tel quel
+```
+
+**Test de portabilité** :
+```bash
+# Vérifier la gestion des chemins sur votre OS
+cargo run --example test_path_handling
+```
+
+### Compilation Windows
+
+**Depuis Windows** (natif) :
+```powershell
+# Installer Rust : https://www.rust-lang.org/tools/install
+cargo build --release
+target\release\winlog-server.exe
+```
+
+**Cross-compilation depuis Linux** :
+```bash
+# Installer la toolchain Windows
+rustup target add x86_64-pc-windows-gnu
+
+# Compiler
+cargo build --release --target x86_64-pc-windows-gnu
+
+# Binaire généré : target/x86_64-pc-windows-gnu/release/winlog-server.exe
+```
+
+### Notes importantes
+
+- ✅ **Configuration** : Utilisez toujours `/` dans `config.toml`, Rust convertit automatiquement
+- ✅ **Scripts bash** : Fonctionnent uniquement sous Linux/macOS/WSL (pas Windows natif)
+- ✅ **Base SQLite** : Format identique Windows/Linux (portabilité totale)
+- ⚠️ **Chemins relatifs** : Toujours relatifs au répertoire de travail (`cd serveur` avant lancement)
 
 ## 📡 API REST
 

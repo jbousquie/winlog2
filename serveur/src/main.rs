@@ -57,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Configuration chargée depuis config.toml");
 
     // 3. Connexion à la base de données SQLite
-    tracing::info!("Connexion à la base SQLite: {}", config.database.path);
+    tracing::info!("Connexion à la base SQLite: {}", config.database.path_buf().display());
     let db = Database::new(&config.database)
         .await
         .expect("Impossible de se connecter à la base SQLite");
