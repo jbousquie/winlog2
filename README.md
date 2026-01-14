@@ -48,38 +48,74 @@ winlog2/
 ### Prérequis de compilation
 
 #### Windows
-Pour compiler sur Windows avec la toolchain GNU (recommandé pour compatibilité cross-platform) :
+
+Le projet utilise `channel = "stable"` dans `rust-toolchain.toml`, ce qui permet à Rust d'utiliser automatiquement la toolchain disponible sur votre système (MSVC ou GNU/MinGW).
+
+📖 **Guide détaillé** : Voir [WINDOWS_BUILD.md](./WINDOWS_BUILD.md) pour des instructions complètes et le dépannage.
+
+##### Option 1 : Compilation avec MSVC (recommandé - plus simple)
+
+Si vous avez **Visual Studio Build Tools** installé, la compilation fonctionnera directement :
+
+```powershell
+# Cloner et compiler - aucune configuration supplémentaire nécessaire
+git clone <repo-url>
+cd winlog2/client
+cargo build --release
+```
+
+**Prérequis** : [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) (gratuit)
+
+##### Option 2 : Compilation avec MinGW (pour compatibilité cross-platform)
+
+Si vous préférez MinGW (pour uniformité avec Linux) ou si MSVC n'est pas disponible :
 
 1. **Installer MSYS2** (si pas déjà présent) :
-   ```bash
+   ```powershell
    winget install MSYS2.MSYS2
    ```
 
-2. **Vérifier les outils MinGW** :
+2. **Installer la toolchain MinGW** :
    ```bash
-   C:\msys64\mingw64\bin\dlltool.exe --version
-   C:\msys64\mingw64\bin\gcc.exe --version
+   # Dans un terminal MSYS2
+   pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-toolchain
    ```
 
-3. **Configuration rustup pour le projet** (automatique dans ce repo) :
-   ```bash
-   # Déjà configuré via rustup override
-   rustup override set stable-x86_64-pc-windows-gnu
-   ```
-
-4. **PATH permanent** (si nécessaire) :
+3. **Configurer Rust pour utiliser MinGW** (une seule fois) :
    ```powershell
+   rustup toolchain install stable-gnu
+   rustup default stable-gnu
+   ```
+
+4. **Ajouter MinGW au PATH** :
+   ```powershell
+   # Temporaire (session actuelle)
+   $env:Path += ";C:\msys64\mingw64\bin"
+   
+   # Permanent (recommandé)
    [Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\msys64\mingw64\bin", "User")
    ```
 
-5. **Sessions SSH** (spécifique VM Windows) :
+5. **Compiler le projet** :
    ```powershell
-   # Pour les sessions SSH, le PATH utilisateur peut ne pas être chargé
-   $env:Path = $env:Path + ";C:\msys64\mingw64\bin"
-   
-   # Ou utiliser le script d'initialisation :
-   . ./ssh-init.ps1
+   cargo build --release
    ```
+
+**Note** : Pour les sessions SSH, le PATH utilisateur peut ne pas être chargé automatiquement. Ajoutez manuellement :
+```powershell
+$env:Path += ";C:\msys64\mingw64\bin"
+```
+
+##### 🚀 Script automatique (recommandé)
+
+Un script PowerShell est fourni pour vérifier les prérequis et compiler automatiquement :
+
+```powershell
+# Clone et compile en une seule commande
+.\build-windows.ps1
+```
+
+Le script vérifie automatiquement Rust, la toolchain et le linker avant de compiler.
 
 #### Linux
 Aucune configuration particulière, la toolchain GNU est native :
@@ -94,6 +130,17 @@ sudo dnf install gcc gcc-c++ make
 # Arch Linux
 sudo pacman -S base-devel
 ```
+
+##### 🚀 Script automatique (recommandé)
+
+Un script bash est fourni pour vérifier les prérequis et compiler automatiquement :
+
+```bash
+# Clone et compile en une seule commande
+./build-linux.sh
+```
+
+Le script vérifie automatiquement Rust, GCC et la toolchain avant de compiler.
 
 ### Compilation cross-platform
 
@@ -122,7 +169,7 @@ cargo build --release --target x86_64-pc-windows-gnu
 # Binaires : target/x86_64-pc-windows-gnu/release/{logon,logout,matos}.exe
 ```
 
-**Note importante :** Ce projet utilise `rustup override` pour définir automatiquement la toolchain `stable-x86_64-pc-windows-gnu` dans chaque sous-dossier, garantissant la cohérence cross-platform sans configuration manuelle.
+**Note importante :** Ce projet utilise `rust-toolchain.toml` avec `channel = "stable"` pour permettre une compilation native automatique sur chaque plateforme sans configuration manuelle. Sur Windows, Rust utilisera MSVC (si installé) ou MinGW/GNU (si configuré). Sur Linux, Rust utilise automatiquement GNU.
 
 ## 🖥️ Partie Client (Rust)
 

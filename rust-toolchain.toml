@@ -1,5 +1,6 @@
 [toolchain]
-channel = "stable-x86_64-pc-windows-gnu"
-targets = ["x86_64-pc-windows-gnu", "x86_64-unknown-linux-gnu"]
-# Force GNU toolchain pour compatibilité cross-platform Windows/Linux
-# Les outils MinGW (dlltool, gcc, etc.) doivent être dans le PATH sur Windows
+channel = "stable"
+# Configuration multi-plateforme pour compilation native
+# Linux: compile automatiquement pour x86_64-unknown-linux-gnu
+# Windows: compile automatiquement pour x86_64-pc-windows-gnu (MinGW) si installé, sinon MSVC
+# Note: Sur Windows, si vous rencontrez des erreurs, installez MinGW-w64 via MSYS2 ou Chocolatey

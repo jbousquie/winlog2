@@ -71,7 +71,7 @@ pub async fn collect_event(
     }
 
     // 4. Validation du timestamp (format ISO 8601)
-    if !event.timestamp.contains('T') {
+    if chrono::DateTime::parse_from_rfc3339(&event.timestamp).is_err() {
         tracing::warn!("Invalid timestamp format: {}", event.timestamp);
         return Err((
             StatusCode::BAD_REQUEST,

@@ -83,12 +83,30 @@ pub mod system_info {
         info.insert("username".to_string(), whoami::username());
         
         // Hostname de la machine
-        info.insert("hostname".to_string(), System::host_name().unwrap_or_default());
+        let hostname = System::host_name().unwrap_or_else(|| {
+            eprintln!("[WARN] Impossible de récupérer le hostname du système");
+            "unknown".to_string()
+        });
+        info.insert("hostname".to_string(), hostname);
         
         // Informations OS
-        info.insert("os_name".to_string(), System::name().unwrap_or_default());
-        info.insert("os_version".to_string(), System::os_version().unwrap_or_default());
-        info.insert("kernel_version".to_string(), System::kernel_version().unwrap_or_default());
+        let os_name = System::name().unwrap_or_else(|| {
+            eprintln!("[WARN] Impossible de récupérer le nom de l'OS");
+            "unknown".to_string()
+        });
+        info.insert("os_name".to_string(), os_name);
+        
+        let os_version = System::os_version().unwrap_or_else(|| {
+            eprintln!("[WARN] Impossible de récupérer la version de l'OS");
+            "unknown".to_string()
+        });
+        info.insert("os_version".to_string(), os_version);
+        
+        let kernel_version = System::kernel_version().unwrap_or_else(|| {
+            eprintln!("[WARN] Impossible de récupérer la version du kernel");
+            "unknown".to_string()
+        });
+        info.insert("kernel_version".to_string(), kernel_version);
         
         info
     }

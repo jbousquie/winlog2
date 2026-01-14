@@ -105,10 +105,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 /// Signal de shutdown gracieux (Ctrl+C)
 async fn shutdown_signal() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("Impossible d'installer le handler Ctrl+C");
-    
-    tracing::info!("");
-    tracing::info!("🛑 Arrêt gracieux du serveur...");
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {
+            tracing::info!("");
+            tracing::info!("🛑 Arrêt gracieux du serveur...");
+        }
+        Err(e) => {
+            tracing::error!("Erreur lors de l'installation du handler Ctrl+C: {}", e);
+            tracing::info!("🛑 Arrêt du serveur...");
+        }
+    }
 }

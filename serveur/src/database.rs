@@ -158,7 +158,13 @@ impl Database {
         // Timestamp 1 seconde avant la nouvelle connexion
         let disconnect_time = chrono::DateTime::parse_from_rfc3339(&event.timestamp)
             .map(|dt| dt - chrono::Duration::seconds(1))
-            .unwrap_or_else(|_| Utc::now().into())
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    "Timestamp invalide pour déconnexion auto: {} - Erreur: {} - Utilisation de l'heure serveur",
+                    event.timestamp, e
+                );
+                Utc::now().into()
+            })
             .to_rfc3339();
 
         let server_timestamp = Utc::now().to_rfc3339();
@@ -206,8 +212,17 @@ impl Database {
 
         // Sérialiser hardware_info si présent
         let hardware_json = event.hardware_info.as_ref()
-            .map(|hw| serde_json::to_string(hw).ok())
-            .flatten();
+            .and_then(|hw| {
+                serde_json::to_string(hw)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            "Erreur lors de la sérialisation de hardware_info pour {}: {}",
+                            event.username, e
+                        );
+                        e
+                    })
+                    .ok()
+            });
 
         let result = sqlx::query(
             r#"
