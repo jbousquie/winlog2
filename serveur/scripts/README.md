@@ -52,7 +52,7 @@ SELECT * FROM events_all WHERE username='jerome';
 **Sortie typique :**
 ```
 === Migration vers la nouvelle structure partitionnée ===
-✓ Backup créé : /var/www/ferron/winlog/data/winlog_backup_20260113_120230.db
+✓ Backup créé : serveur/data/winlog_backup_20260113_120230.db
 ✓ Migration effectuée avec succès
 
 Statistiques après migration :
@@ -67,7 +67,7 @@ Statistiques après migration :
 **Nettoyage post-migration :**
 ```bash
 # Après avoir vérifié que tout fonctionne
-sqlite3 /var/www/ferron/winlog/data/winlog.db 'DROP TABLE events_old;'
+sqlite3 serveur/data/winlog.db 'DROP TABLE events_old;'
 ```
 
 ---
@@ -81,7 +81,7 @@ sqlite3 /var/www/ferron/winlog/data/winlog.db 'DROP TABLE events_old;'
 
 **Actions effectuées :**
 - Vérification des prérequis (sqlite3 installé)
-- Création du répertoire `/var/www/ferron/winlog/data/` si nécessaire
+- Création du répertoire `serveur/data/` si nécessaire
 - Création des tables `events_today` et `events_history`
 - Création de 11 index optimisés
 - Création de la vue `events_all`
@@ -92,13 +92,13 @@ sqlite3 /var/www/ferron/winlog/data/winlog.db 'DROP TABLE events_old;'
 === Création de la base Winlog (structure partitionnée) ===
 ✓ SQLite3 disponible (3.37.2)
 ✓ Utilisateur : www-data
-✓ Répertoire existant : /var/www/ferron/winlog/data
+✓ Répertoire existant : serveur/data
 ✓ Tables créées : events_today, events_history
 ✓ Vue créée : events_all
 ✓ Index créés (11 au total)
 
 === Création terminée avec succès ===
-Base de données : /var/www/ferron/winlog/data/winlog.db
+Base de données : serveur/data/winlog.db
 Taille : 32K
 ```
 
@@ -165,7 +165,7 @@ Taille : 32K
 - Vide `events_today`
 - Réinitialise l'auto-increment
 - Exécute VACUUM pour optimiser
-- Log toutes les opérations dans `/var/www/ferron/winlog/data/rotation.log`
+- Log toutes les opérations dans `serveur/data/rotation.log`
 
 **Configuration cron (recommandé) :**
 ```bash
@@ -187,7 +187,7 @@ crontab -e
 
 **Vérification des logs :**
 ```bash
-tail -f /var/www/ferron/winlog/data/rotation.log
+tail -f serveur/data/rotation.log
 ```
 
 ---
@@ -208,7 +208,7 @@ cd /home/jerome/scripts/rust/winlog2/serveur/scripts
 # 3. Tester que tout fonctionne
 
 # 4. Nettoyer l'ancienne table
-sqlite3 /var/www/ferron/winlog/data/winlog.db 'DROP TABLE events_old;'
+sqlite3 serveur/data/winlog.db 'DROP TABLE events_old;'
 
 # 5. Configurer le cron pour rotation automatique
 crontab -e
@@ -327,24 +327,24 @@ sqlite3 --version
 ### Erreur "database is locked"
 ```bash
 # Vérifier les processus utilisant la base
-lsof /var/www/ferron/winlog/data/winlog.db
+lsof serveur/data/winlog.db
 
 # Forcer la fermeture du mode WAL
-sqlite3 /var/www/ferron/winlog/data/winlog.db "PRAGMA journal_mode=DELETE;"
-sqlite3 /var/www/ferron/winlog/data/winlog.db "PRAGMA journal_mode=WAL;"
+sqlite3 serveur/data/winlog.db "PRAGMA journal_mode=DELETE;"
+sqlite3 serveur/data/winlog.db "PRAGMA journal_mode=WAL;"
 ```
 
 ### Permissions insuffisantes
 ```bash
-# Donner les permissions à www-data (Apache/PHP)
-sudo chown -R www-data:www-data /var/www/ferron/winlog/data/
-sudo chmod 755 /var/www/ferron/winlog/data/
-sudo chmod 664 /var/www/ferron/winlog/data/winlog.db*
+# Donner les permissions appropriées
+sudo chown -R $USER:$USER serveur/data/
+sudo chmod 755 serveur/data/
+sudo chmod 664 serveur/data/winlog.db*
 ```
 
 ### Vérifier l'intégrité
 ```bash
-sqlite3 /var/www/ferron/winlog/data/winlog.db "PRAGMA integrity_check;"
+sqlite3 serveur/data/winlog.db "PRAGMA integrity_check;"
 ```
 
 ---

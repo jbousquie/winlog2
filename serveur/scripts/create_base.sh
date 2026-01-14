@@ -8,9 +8,12 @@
 
 set -e  # Arrêt immédiat en cas d'erreur
 
-# Configuration (importée depuis config.php)
-DB_PATH="/var/www/ferron/winlog/data/winlog.db"
-DB_DIR="/var/www/ferron/winlog/data"
+# Configuration
+# Chemin relatif au répertoire du projet
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_DIR="$PROJECT_DIR/data"
+DB_PATH="$DB_DIR/winlog.db"
 
 echo "=== Création de la base Winlog (structure partitionnée) ==="
 echo ""

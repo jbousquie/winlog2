@@ -9,8 +9,12 @@
 set -e
 
 # Configuration
-DB_PATH="/var/www/ferron/winlog/data/winlog.db"
-BACKUP_PATH="/var/www/ferron/winlog/data/winlog_backup_$(date +%Y%m%d_%H%M%S).db"
+# Chemin relatif au répertoire du projet
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_DIR="$PROJECT_DIR/data"
+DB_PATH="$DB_DIR/winlog.db"
+BACKUP_PATH="$DB_DIR/winlog_backup_$(date +%Y%m%d_%H%M%S).db"
 
 echo "=== Migration vers la nouvelle structure partitionnée ==="
 echo ""

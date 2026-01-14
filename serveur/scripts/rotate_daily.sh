@@ -10,8 +10,12 @@
 set -e
 
 # Configuration
-DB_PATH="/var/www/ferron/winlog/data/winlog.db"
-LOG_FILE="/var/www/ferron/winlog/data/rotation.log"
+# Chemin relatif au répertoire du projet
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_DIR="$PROJECT_DIR/data"
+DB_PATH="$DB_DIR/winlog.db"
+LOG_FILE="$DB_DIR/rotation.log"
 
 # Fonction de log avec timestamp
 log() {

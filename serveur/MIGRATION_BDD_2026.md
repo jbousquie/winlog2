@@ -142,7 +142,7 @@ VACUUM;
 0 1 * * * /path/to/rotate_daily.sh >> /var/log/winlog_rotation.log
 ```
 
-**Logs :** `/var/www/ferron/winlog/data/rotation.log`
+**Logs :** `serveur/data/rotation.log`
 
 ---
 
@@ -241,7 +241,7 @@ cd serveur/scripts
 ./migrate_to_new_structure.sh  # Crée backup auto
 # Adapter index.php
 # Tester
-sqlite3 /var/www/ferron/winlog/data/winlog.db 'DROP TABLE events_old;'
+sqlite3 serveur/data/winlog.db 'DROP TABLE events_old;'
 ```
 
 ### Maintenance courante
@@ -283,7 +283,7 @@ sqlite3 /path/to/winlog.db "PRAGMA integrity_check;"
 - **Documentation scripts** : `serveur/scripts/README.md`
 - **Spécifications techniques** : `serveur/NOUVELLE_STRUCTURE.md`
 - **Guide migration PHP** : Dans NOUVELLE_STRUCTURE.md section "Migration du code PHP"
-- **Logs rotation** : `/var/www/ferron/winlog/data/rotation.log`
+- **Logs rotation** : `serveur/data/rotation.log`
 
 ---
 

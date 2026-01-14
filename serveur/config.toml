@@ -11,7 +11,8 @@ port = 3000
 [database]
 # Chemin vers la base de données SQLite
 # Utilise la nouvelle structure partitionnée (events_today + events_history)
-path = "/var/www/ferron/winlog/data/winlog.db"
+# Chemin relatif au répertoire du serveur
+path = "data/winlog.db"
 
 # Configuration des PRAGMA SQLite
 # journal_mode = WAL permet les lectures concurrentes

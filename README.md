@@ -154,7 +154,7 @@ host = "127.0.0.1"      # 0.0.0.0 pour écouter sur toutes interfaces
 port = 3000             # Port API REST
 
 [database]
-path = "/var/www/ferron/winlog/data/winlog.db"
+path = "data/winlog.db"  # Chemin relatif au répertoire serveur
 pragma_journal_mode = "WAL"
 pragma_synchronous = "NORMAL"
 pragma_busy_timeout = 30000
@@ -199,7 +199,7 @@ valid_actions = ["C", "D", "M"]
 
 ### Architecture partitionnée (2 tables + 1 vue)
 
-**Emplacement** : `/var/www/ferron/winlog/data/winlog.db` (configurable)
+**Emplacement** : `serveur/data/winlog.db` (configurable dans `config.toml`)
 
 **Tables** :
 - `events_today` : Événements du jour (~100 rows, lectures/écritures rapides)
@@ -327,7 +327,7 @@ cargo build --release
 ```bash
 cd serveur/scripts
 ./create_base.sh
-# Crée /var/www/ferron/winlog/data/winlog.db avec structure partitionnée
+# Crée serveur/data/winlog.db avec structure partitionnée
 ```
 
 3. **Configurer le serveur** :
@@ -395,7 +395,7 @@ curl -X POST http://127.0.0.1:3000/api/v1/events \
 
 ### Vérifier la base de données
 ```bash
-sqlite3 /var/www/ferron/winlog/data/winlog.db \
+sqlite3 serveur/data/winlog.db \
   "SELECT username, action, timestamp FROM events_today ORDER BY id DESC LIMIT 10;"
 ```
 

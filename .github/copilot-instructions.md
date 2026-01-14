@@ -316,7 +316,7 @@ cargo build --release
 ```bash
 cd serveur/scripts
 ./create_base.sh
-# Crée /var/www/ferron/winlog/data/winlog.db avec structure partitionnée
+# Crée serveur/data/winlog.db avec structure partitionnée
 ```
 
 #### Démarrage

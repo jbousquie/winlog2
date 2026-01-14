@@ -110,7 +110,7 @@ host = "127.0.0.1"      # 0.0.0.0 pour écouter sur toutes les interfaces
 port = 3000             # Port d'écoute
 
 [database]
-path = "/var/www/ferron/winlog/data/winlog.db"  # Chemin base SQLite
+path = "data/winlog.db"  # Chemin base SQLite (relatif au répertoire serveur)
 pragma_journal_mode = "WAL"        # Write-Ahead Logging (performances)
 pragma_synchronous = "NORMAL"      # Balance sécurité/vitesse
 pragma_busy_timeout = 30000        # Timeout 30s pour verrous
@@ -323,7 +323,7 @@ User "jdupont" se re-connecte à 14h sans s'être déconnecté
 
 ```bash
 # Crontab : rotation à 1h du matin chaque jour
-0 1 * * * /var/www/ferron/winlog/serveur/scripts/rotate_daily.sh
+0 1 * * * /chemin/absolu/vers/winlog2/serveur/scripts/rotate_daily.sh
 ```
 
 **Actions effectuées** :
@@ -531,17 +531,17 @@ define service {
 **Statistiques en temps réel** :
 ```bash
 # Taille base de données
-du -h /var/www/ferron/winlog/data/winlog.db
+du -h serveur/data/winlog.db
 
 # Nombre d'événements par table
-sqlite3 /var/www/ferron/winlog/data/winlog.db <<EOF
+sqlite3 serveur/data/winlog.db <<EOF
 SELECT 'today', COUNT(*) FROM events_today
 UNION ALL
 SELECT 'history', COUNT(*) FROM events_history;
 EOF
 
 # Sessions ouvertes actuellement
-sqlite3 /var/www/ferron/winlog/data/winlog.db <<EOF
+sqlite3 serveur/data/winlog.db <<EOF
 SELECT username, hostname, timestamp
 FROM events_today
 WHERE action = 'C'
@@ -588,7 +588,7 @@ curl -X POST http://127.0.0.1:3000/api/v1/events \
 
 **4. Vérifier en base**
 ```bash
-sqlite3 /var/www/ferron/winlog/data/winlog.db \
+sqlite3 serveur/data/winlog.db \
   "SELECT * FROM events_today ORDER BY id DESC LIMIT 1;"
 ```
 
@@ -732,8 +732,8 @@ Principe : Mieux vaut ne pas démarrer que démarrer en état invalide.
 5. **Permissions fichiers**
    ```bash
    # Base de données accessible uniquement par l'utilisateur serveur
-   chown winlog-user:winlog-user /var/www/ferron/winlog/data/winlog.db
-   chmod 600 /var/www/ferron/winlog/data/winlog.db
+   chown winlog-user:winlog-user serveur/data/winlog.db
+   chmod 600 serveur/data/winlog.db
    ```
 
 ## 🐛 Dépannage
@@ -745,7 +745,7 @@ Principe : Mieux vaut ne pas démarrer que démarrer en état invalide.
 **Solution** :
 ```bash
 # Vérifier processus SQLite
-lsof /var/www/ferron/winlog/data/winlog.db
+lsof serveur/data/winlog.db
 
 # Augmenter busy_timeout dans config.toml
 [database]
@@ -782,7 +782,7 @@ RUST_LOG=debug ./target/release/winlog-server
 sudo netstat -tlnp | grep 3000
 
 # Tester connexion base
-sqlite3 /var/www/ferron/winlog/data/winlog.db "SELECT COUNT(*) FROM events_today;"
+sqlite3 serveur/data/winlog.db "SELECT COUNT(*) FROM events_today;"
 ```
 
 ### Performances dégradées
@@ -790,7 +790,7 @@ sqlite3 /var/www/ferron/winlog/data/winlog.db "SELECT COUNT(*) FROM events_today
 **Analyse** :
 ```bash
 # Taille base de données
-du -h /var/www/ferron/winlog/data/winlog.db*
+du -h serveur/data/winlog.db*
 
 # Analyser requêtes lentes (activer SQLX tracing)
 RUST_LOG=sqlx=trace ./target/release/winlog-server

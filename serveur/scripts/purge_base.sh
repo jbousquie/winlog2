@@ -13,7 +13,10 @@
 set -e
 
 # Configuration
-DB_PATH="/var/www/ferron/winlog/data/winlog.db"
+# Chemin relatif au répertoire du projet
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+DB_PATH="$PROJECT_DIR/data/winlog.db"
 
 # Déterminer la cible du vidage
 TARGET="all"

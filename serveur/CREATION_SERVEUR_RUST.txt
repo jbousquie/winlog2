@@ -94,7 +94,7 @@ host = "127.0.0.1"      # Localhost (tests Windows/Linux)
 port = 3000             # Nouveau port (ancien PHP: 80)
 
 [database]
-path = "/var/www/ferron/winlog/data/winlog.db"
+path = "data/winlog.db"  # Chemin relatif
 pragma_journal_mode = "WAL"      # Lectures concurrentes
 pragma_synchronous = "NORMAL"     # Balance perf/sécurité
 pragma_busy_timeout = 30000       # Timeout 30s
@@ -167,7 +167,7 @@ Raisons changement :
      -d '{"username":"test","action":"C","timestamp":"2026-01-13T14:00:00Z"}'
 
 5. Vérifier en base :
-   sqlite3 /var/www/ferron/winlog/data/winlog.db \
+   sqlite3 serveur/data/winlog.db \
      "SELECT * FROM events_today ORDER BY id DESC LIMIT 5;"
 
 ┌──────────────────────────────────────────────────────────────────────┐
